@@ -112,7 +112,7 @@ def ask_ai(messages):
     return response.choices[0].message.content
 
 # =========================
-# PDF FUNCTION
+# PDF REPORT FUNCTION (KEEP FOR REPORT DOWNLOAD)
 # =========================
 def create_report_pdf(title, content, charts=None):
     pdf = FPDF()
@@ -143,41 +143,14 @@ def create_report_pdf(title, content, charts=None):
     return pdf.output(dest="S").encode("latin1")
 
 # =========================
-# INPUT
+# INPUT (ONLY CHAT NOW)
 # =========================
-col1, col2 = st.columns([2, 2])
-
-with col1:
-    user_input = st.chat_input("Type your message...")
-
-with col2:
-    uploaded_pdf = st.file_uploader("Upload a PDF", type=["pdf"])
-
-# =========================
-# PDF LOGIC
-# =========================
-if uploaded_pdf:
-    import PyPDF2
-    reader = PyPDF2.PdfReader(uploaded_pdf)
-
-    text_content = ""
-    for page in reader.pages:
-        text_content += page.extract_text() + "\n"
-
-    st.subheader("Uploaded PDF Content")
-    st.text_area("Extracted Text", text_content, height=300)
-
-    if st.button("Ask AI about PDF"):
-        reply = ask_ai([
-            {"role": "system", "content": "Analyze PDF"},
-            {"role": "user", "content": text_content}
-        ])
-        st.markdown(reply)
+user_input = st.chat_input("Type your message...")
 
 # =========================
 # CHAT LOGIC
 # =========================
-elif user_input:
+if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
 
     c.execute("INSERT INTO history VALUES (?,?)",
