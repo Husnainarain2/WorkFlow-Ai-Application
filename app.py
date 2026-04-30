@@ -129,6 +129,34 @@ if st.session_state.messages:
         file_name="chat_history.txt",
         mime="text/plain"
     )
+    # email 
+st.sidebar.subheader("✉️ Email Tools")
+
+if st.sidebar.button("Write Email"):
+    st.session_state.email_mode = True
+
+if "email_mode" in st.session_state and st.session_state.email_mode:
+    st.subheader("Compose Email")
+    subject = st.text_input("Subject")
+    body = st.text_area("Body")
+
+    if st.button("Generate Email"):
+        # Here you can call your AI model to polish/summarize the email
+        reply = ask_ai([
+            {"role": "system", "content": "You are an assistant that writes professional emails."},
+            {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
+        ])
+        st.write("📧 Suggested Email Draft:")
+        st.markdown(reply)
+st.sidebar.subheader("📄 Summarization")
+
+if st.sidebar.button("Summarize Chat"):
+    summary = ask_ai([
+        {"role": "system", "content": "Summarize the following chat into key points."},
+        {"role": "user", "content": "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])}
+    ])
+    st.write("📝 Chat Summary:")
+    st.markdown(summary)
 
 # --- Show History ---
 st.sidebar.subheader("🔎 Search History")
