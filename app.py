@@ -142,6 +142,32 @@ if st.sidebar.button("Summarize Chat"):
     ])
     st.write("📝 Chat Summary:")
     st.markdown(summary)
+#report Genertor
+st.sidebar.subheader("📊 Reports")
+
+if st.sidebar.button("Generate Report"):
+    st.session_state.report_mode = True
+if "report_mode" in st.session_state and st.session_state.report_mode:
+    st.subheader("Generate Report")
+    report_topic = st.text_input("Report Topic", placeholder="e.g., Project Progress, Meeting Notes")
+
+    if st.button("Create Report"):
+        # Use AI to generate a structured report
+        report = ask_ai([
+            {"role": "system", "content": "You are an assistant that writes structured professional reports."},
+            {"role": "user", "content": f"Create a detailed report on: {report_topic}"}
+        ])
+        st.write("📄 Generated Report:")
+        st.markdown(report)
+
+        # Option to download as TXT
+        st.download_button(
+            label="Download Report (TXT)",
+            data=report,
+            file_name="report.txt",
+            mime="text/plain"
+        )
+
 
 # --- Download Chat ---
 st.sidebar.subheader("⬇ Download Chat")
