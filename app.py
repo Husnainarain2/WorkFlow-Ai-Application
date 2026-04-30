@@ -1,18 +1,20 @@
 import os
 import sqlite3
-import json
 import uuid
 import streamlit as st
 from groq import Groq
 
 # =========================
-# CONFIG
+# PAGE CONFIG
 # =========================
 st.set_page_config(page_title="Workflow AI Pro", layout="centered")
 
+# =========================
+# API KEY
+# =========================
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
-    st.error("Add GROQ_API_KEY in Secrets")
+    st.error("Add GROQ_API_KEY in Streamlit Secrets")
     st.stop()
 
 client = Groq(api_key=api_key)
@@ -27,65 +29,66 @@ c.execute("""
 CREATE TABLE IF NOT EXISTS chats (
     chat_id TEXT,
     user TEXT,
-    title TEXT,
-    messages TEXT
+    role TEXT,
+    message TEXT
 )
 """)
 conn.commit()
 
-user = "guest"
-
 # =========================
 # SESSION STATE
 # =========================
-if "current_chat" not in st.session_state:
-    st.session_state.current_chat = None
+user = "guest"
+
+if "chat_id" not in st.session_state:
+    st.session_state.chat_id = None
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "chat"
+
+if "stop_stream" not in st.session_state:
+    st.session_state.stop_stream = False
+
 # =========================
-# LOAD ALL CHATS
+# CHAT MANAGEMENT
 # =========================
-def get_chats():
-    c.execute("SELECT chat_id, title FROM chats WHERE user=?", (user,))
-    return c.fetchall()
+def new_chat():
+    chat_id = str(uuid.uuid4())[:8]
+    st.session_state.chat_id = chat_id
+    st.session_state.messages = []
 
 def load_chat(chat_id):
-    c.execute("SELECT messages FROM chats WHERE chat_id=?", (chat_id,))
-    row = c.fetchone()
+    c.execute("""
+        SELECT role, message FROM chats
+        WHERE chat_id=? AND user=?
+    """, (chat_id, user))
 
-    if row:
-        st.session_state.messages = json.loads(row[0])
-        st.session_state.current_chat = chat_id
+    rows = c.fetchall()
+    st.session_state.chat_id = chat_id
+    st.session_state.messages = [
+        {"role": r, "content": m} for r, m in rows
+    ]
 
-def save_chat():
-    if not st.session_state.current_chat:
+def save_message(role, message):
+    if not st.session_state.chat_id:
         return
 
     c.execute("""
-    UPDATE chats
-    SET messages=?
-    WHERE chat_id=?
-    """, (json.dumps(st.session_state.messages), st.session_state.current_chat))
-
+        INSERT INTO chats VALUES (?,?,?,?)
+    """, (st.session_state.chat_id, user, role, message))
     conn.commit()
 
-def new_chat():
-    chat_id = str(uuid.uuid4())[:8]
-    title = "New Chat"
-
+def get_all_chats():
     c.execute("""
-    INSERT INTO chats VALUES (?,?,?,?)
-    """, (chat_id, user, title, json.dumps([])))
-
-    conn.commit()
-
-    st.session_state.current_chat = chat_id
-    st.session_state.messages = []
+        SELECT DISTINCT chat_id FROM chats WHERE user=?
+    """, (user,))
+    return [i[0] for i in c.fetchall()]
 
 # =========================
-# AI STREAM
+# STREAMING AI
 # =========================
 def ask_ai_stream(messages):
     response = client.chat.completions.create(
@@ -98,6 +101,9 @@ def ask_ai_stream(messages):
     box = st.empty()
 
     for chunk in response:
+        if st.session_state.stop_stream:
+            break
+
         if chunk.choices[0].delta.content:
             full += chunk.choices[0].delta.content
             box.markdown(full)
@@ -105,7 +111,7 @@ def ask_ai_stream(messages):
     return full
 
 # =========================
-# SIDEBAR (CHATGPT STYLE)
+# SIDEBAR (CHAT LIST)
 # =========================
 st.sidebar.title("💬 Chats")
 
@@ -113,37 +119,41 @@ if st.sidebar.button("➕ New Chat"):
     new_chat()
     st.rerun()
 
-chats = get_chats()
+chat_list = get_all_chats()
 
-for chat_id, title in chats:
-    col1, col2 = st.sidebar.columns([4, 1])
+for cid in chat_list:
+    if st.sidebar.button(f"Chat {cid}"):
+        load_chat(cid)
+        st.rerun()
 
-    with col1:
-        if st.button(title, key=chat_id):
-            load_chat(chat_id)
-            st.rerun()
-
-    with col2:
-        if st.button("🗑", key=f"del_{chat_id}"):
-            c.execute("DELETE FROM chats WHERE chat_id=?", (chat_id,))
-            conn.commit()
-            st.rerun()
+if st.sidebar.button("🧹 Clear Current Chat"):
+    if st.session_state.chat_id:
+        c.execute("DELETE FROM chats WHERE chat_id=?", (st.session_state.chat_id,))
+        conn.commit()
+    st.session_state.messages = []
+    st.rerun()
 
 # =========================
-# MAIN UI
+# HEADER
 # =========================
-st.title("🤖 ChatGPT Pro Clone (Multi Chat)")
+st.title("🤖 Workflow AI Pro (Multi Chat)")
 
-if not st.session_state.current_chat:
+if not st.session_state.chat_id:
     st.info("Click ➕ New Chat to start")
     st.stop()
 
 # =========================
-# SHOW MESSAGES
+# SHOW CHAT
 # =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+
+# =========================
+# STOP BUTTON
+# =========================
+if st.button("⛔ Stop Generating"):
+    st.session_state.stop_stream = True
 
 # =========================
 # CHAT INPUT
@@ -152,27 +162,61 @@ user_input = st.chat_input("Message AI...")
 
 if user_input:
 
+    st.session_state.stop_stream = False
+
+    # USER MESSAGE
     st.session_state.messages.append({"role": "user", "content": user_input})
+    save_message("user", user_input)
 
     with st.chat_message("user"):
         st.markdown(user_input)
 
+    # AI RESPONSE
     with st.chat_message("assistant"):
         reply = ask_ai_stream(st.session_state.messages)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
-
-    # auto-save
-    save_chat()
+    save_message("assistant", reply)
 
 # =========================
-# AUTO TITLE UPDATE
+# TOOLS (UNCHANGED)
 # =========================
-def update_title():
-    if len(st.session_state.messages) == 2:
-        first = st.session_state.messages[0]["content"]
-        c.execute("UPDATE chats SET title=? WHERE chat_id=?",
-                  (first[:25], st.session_state.current_chat))
-        conn.commit()
+if st.session_state.mode == "email":
+    st.subheader("📧 Email Generator")
 
-update_title()
+    subject = st.text_input("Subject")
+    body = st.text_area("Body")
+
+    if st.button("Generate Email"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write professional email"},
+            {"role": "user", "content": f"{subject}\n{body}"}
+        ])
+        st.write(result)
+
+if st.session_state.mode == "report":
+    st.subheader("📊 Report Generator")
+
+    topic = st.text_input("Topic")
+
+    if st.button("Generate Report"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write structured report"},
+            {"role": "user", "content": topic}
+        ])
+        st.write(result)
+
+if st.session_state.mode == "summary":
+    st.subheader("📝 Summarizer")
+
+    text = st.text_area("Paste text")
+
+    if st.button("Summarize"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Summarize in bullet points"},
+            {"role": "user", "content": text}
+        ])
+        st.write(result)
+
+# reset
+st.session_state.stop_stream = False
