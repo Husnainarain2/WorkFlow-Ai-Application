@@ -19,11 +19,18 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # =========================
-# DB
+# DB SETUP (FULL HISTORY FIX)
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
-c.execute("CREATE TABLE IF NOT EXISTS history (username TEXT, query TEXT)")
+
+c.execute("""
+CREATE TABLE IF NOT EXISTS chat_history (
+    user TEXT,
+    role TEXT,
+    message TEXT
+)
+""")
 conn.commit()
 
 # =========================
@@ -32,11 +39,26 @@ conn.commit()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "chat"
+
 if "stop_stream" not in st.session_state:
     st.session_state.stop_stream = False
 
-if "mode" not in st.session_state:
-    st.session_state.mode = "chat"
+user = "guest"
+
+# =========================
+# LOAD HISTORY (IMPORTANT FIX)
+# =========================
+def load_history():
+    c.execute("SELECT role, message FROM chat_history WHERE user=?", (user,))
+    rows = c.fetchall()
+    st.session_state.messages = [
+        {"role": r, "content": m} for r, m in rows
+    ]
+
+if len(st.session_state.messages) == 0:
+    load_history()
 
 # =========================
 # STREAMING AI (CHATGPT STYLE)
@@ -62,15 +84,9 @@ def ask_ai_stream(messages):
     return full_response
 
 # =========================
-# STOP BUTTON
-# =========================
-if st.button("⛔ Stop Generating"):
-    st.session_state.stop_stream = True
-
-# =========================
 # SIDEBAR NAVIGATION
 # =========================
-st.sidebar.title("⚙️ Workflow AI")
+st.sidebar.title("Workflow AI")
 
 if st.sidebar.button("💬 Chat"):
     st.session_state.mode = "chat"
@@ -86,28 +102,27 @@ if st.sidebar.button("📝 Summarizer"):
 
 if st.sidebar.button("🧹 Clear Chat"):
     st.session_state.messages = []
+    c.execute("DELETE FROM chat_history WHERE user=?", (user,))
+    conn.commit()
     st.rerun()
 
 # =========================
-# AUTO SCROLL (CHATGPT FEEL)
-# =========================
-st.markdown("""
-<script>
-const scrollToBottom = () => {
-    window.scrollTo(0, document.body.scrollHeight);
-};
-scrollToBottom();
-</script>
-""", unsafe_allow_html=True)
-
-# =========================
-# CHAT UI
+# HEADER
 # =========================
 st.title("🤖 ChatGPT Style AI Pro")
 
+# =========================
+# SHOW CHAT
+# =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+
+# =========================
+# STOP BUTTON
+# =========================
+if st.button("⛔ Stop Generating"):
+    st.session_state.stop_stream = True
 
 # =========================
 # CHAT INPUT
@@ -115,21 +130,34 @@ for msg in st.session_state.messages:
 user_input = st.chat_input("Message AI...")
 
 if user_input:
+
     st.session_state.stop_stream = False
 
+    # SHOW USER MESSAGE
     st.session_state.messages.append({"role": "user", "content": user_input})
-
-    c.execute("INSERT INTO history VALUES (?,?)",
-              ("guest", user_input))
-    conn.commit()
 
     with st.chat_message("user"):
         st.markdown(user_input)
 
+    # SAVE USER MESSAGE
+    c.execute(
+        "INSERT INTO chat_history VALUES (?,?,?)",
+        (user, "user", user_input)
+    )
+    conn.commit()
+
+    # AI RESPONSE
     with st.chat_message("assistant"):
         reply = ask_ai_stream(st.session_state.messages)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
+
+    # SAVE AI MESSAGE
+    c.execute(
+        "INSERT INTO chat_history VALUES (?,?,?)",
+        (user, "assistant", reply)
+    )
+    conn.commit()
 
 # =========================
 # EMAIL TOOL
@@ -177,20 +205,5 @@ if st.session_state.mode == "summary":
         ])
         st.write(result)
 
-# reset stop flag after each run
+# reset stop flag
 st.session_state.stop_stream = False
-
-# save history
-        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
-                  (st.session_state.user, "user", user_input))
-        conn.commit()
-
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                reply = ask_ai(st.session_state.messages, memory)
-                st.markdown(reply)
-
-        st.session_state.messages.append({"role": "assistant", "content": reply})
