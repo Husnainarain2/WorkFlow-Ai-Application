@@ -156,24 +156,7 @@ if user_input:
 # =========================
 # SIDEBAR
 # =========================
-st.sidebar.markdown("""
-<style>
-[data-testid="stSidebar"] {
-    background-color: #111827;
-    color: white;
-    padding: 20px;
-}
-.sidebar-title {
-    font-size: 14px;
-    font-weight: bold;
-    color: #9CA3AF;
-    margin-bottom: 8px;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# --- Search History Section ---
-st.sidebar.markdown('<div class="sidebar-title">Search History</div>', unsafe_allow_html=True)
+st.sidebar.markdown("### Search History")
 c.execute("SELECT rowid, query FROM history WHERE username=?", (st.session_state.user,))
 rows = c.fetchall()
 for i, (rowid, query) in enumerate(rows[-10:]):
@@ -202,51 +185,153 @@ if st.sidebar.button("Delete All History"):
     st.sidebar.success("All history deleted!")
     st.rerun()
 
-# --- Navigation Menu ---
-st.sidebar.markdown('<div class="sidebar-title">Main</div>', unsafe_allow_html=True)
-menu = st.sidebar.radio("",
-    ["🏠 Dashboard", "💬 Chat", "✉ Email", "📄 Summarization", "📊 Reports", "⬇ Downloads"],
-    label_visibility="collapsed"
-)
+# Collapsible Tools Section
+with st.sidebar.expander("☰ Tools", expanded=False):
+    # Chat Controls
+    if st.button("Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
 
-st.sidebar.markdown('<div class="sidebar-title">Other</div>', unsafe_allow_html=True)
-other = st.sidebar.radio("",
-    ["📈 Data Visualization", "⚙ Settings"],
-    label_visibility="collapsed"
-)
+    if st.button("Toggle Theme"):
+        toggle_theme()
+        st.rerun()
 
+    # Email Tools
+    st.markdown("#### Email")
+    if st.button("Write Email"):
+        st.session_state.email_mode = True
+    if "email_mode" in st.session_state and st.session_state.email_mode:
+        st.subheader("Compose Email")
+        subject = st.text_input("Subject")
+        body = st.text_area("Body")
+        if st.button("Generate Email"):
+            reply = ask_ai([
+                {"role": "system", "content": "You are an assistant that writes professional emails."},
+                {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
+            ])
+            st.write("Suggested Email Draft:")
+            st.markdown(reply)
+
+    # Summarization
+    st.markdown("#### Summarization")
+    if st.button("Summarize Chat"):
+        summary = ask_ai([
+            {"role": "system", "content": "Summarize the following chat into key points."},
+            {"role": "user", "content": "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])}
+        ])
+        st.subheader("Chat Summary")
+        st.markdown(summary)
+
+    # Reports
+        # Reports
+    st.markdown("#### Reports")
+    if st.button("Generate Report"):
+        st.session_state.report_mode = True
+    if "report_mode" in st.session_state and st.session_state.report_mode:
+        st.subheader("Report Generator")
+        report_topic = st.text_input("Report Topic", placeholder="e.g., Project Progress, Meeting Notes")
+        if st.button("Create Report"):
+            report_text = ask_ai([
+                {"role": "system", "content": "You are an assistant that writes structured professional reports."},
+                {"role": "user", "content": f"Create a detailed report on: {report_topic}"}
+            ])
+            st.write("Generated Report:")
+            st.markdown(report_text)
+
+            # Generate charts dynamically from session data
+            email_count = sum(1 for m in st.session_state.messages if "Subject:" in m["content"])
+            summary_count = sum(1 for m in st.session_state.messages if "Summary" in m["content"])
+            report_count = sum(1 for m in st.session_state.messages if "Report" in m["content"])
+            scheduling_count = sum(1 for m in st.session_state.messages if "Schedule" in m["content"])
+
+            tasks = {"Emails": email_count, "Summaries": summary_count,
+                     "Reports": report_count, "Scheduling": scheduling_count}
+            fig1 = px.pie(names=list(tasks.keys()), values=list(tasks.values()), hole=0.4, title="Tasks Breakdown")
+
+            time_saved = round((email_count+summary_count+report_count+scheduling_count) * 0.25, 2)
+            fig2 = go.Figure(go.Indicator(mode="gauge+number", value=time_saved,
+                                          title={'text': "Time Saved (hrs)"},
+                                          gauge={'axis': {'range': [0, 40]}, 'bar': {'color': "green"}}))
+
+            workflows = {"Drafting Reports": report_count*10,
+                         "Summarizing Meetings": summary_count*5,
+                         "Email Automation": email_count*8}
+            fig3 = go.Figure()
+            for task, progress in workflows.items():
+                fig3.add_trace(go.Bar(x=[min(progress,100)], y=[task],
+                                      orientation='h', text=f"{min(progress,100)}%", textposition="outside"))
+            fig3.update_layout(title="Active Workflows Progress", xaxis=dict(range=[0,100]))
+
+            # Download buttons
+            st.download_button("Download Report (TXT)", data=report_text, file_name="report.txt", mime="text/plain")
+            pdf_bytes = create_report_pdf(report_topic, report_text, charts=[fig1, fig2, fig3])
+            st.download_button("Download Report (PDF)", data=pdf_bytes, file_name="report.pdf", mime="application/pdf")
+
+    # Downloads
+    st.markdown("#### Downloads")
+    if st.session_state.messages:
+        st.download_button("Download JSON",
+            data=json.dumps(st.session_state.messages, indent=2),
+            file_name="chat_history.json",
+            mime="application/json")
+        st.download_button("Download TXT",
+            data="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages]),
+            file_name="chat_history.txt",
+            mime="text/plain")
+
+ # =========================
+# DATA VISUALIZATION TOGGLE
 # =========================
-# MAIN PAGE PANELS
-# =========================
-if menu == "🏠 Dashboard":
+st.sidebar.markdown("#### Data Visualization")
+
+# Toggle button
+if "show_dashboard" not in st.session_state:
+    st.session_state.show_dashboard = False
+
+if st.sidebar.button("Toggle Dashboard Charts"):
+    st.session_state.show_dashboard = not st.session_state.show_dashboard
+
+# Show or hide charts in main page
+if st.session_state.show_dashboard:
     st.header("Workflow Insights Dashboard")
-    # show metrics + charts (donut, gauge, progress bars)
 
-elif menu == "💬 Chat":
-    st.header("Chat")
-    # existing chat input + messages
+    # --- Collect live stats from session ---
+    email_count = sum(1 for m in st.session_state.messages if "Subject:" in m["content"])
+    summary_count = sum(1 for m in st.session_state.messages if "Summary" in m["content"])
+    report_count = sum(1 for m in st.session_state.messages if "Report" in m["content"])
+    scheduling_count = sum(1 for m in st.session_state.messages if "Schedule" in m["content"])
 
-elif menu == "✉ Email":
-    st.header("Email Tools")
-    # your email composition logic
+    total_tasks = email_count + summary_count + report_count + scheduling_count
+    time_saved = round(total_tasks * 0.25, 2)  # 15 mins per task
 
-elif menu == "📄 Summarization":
-    st.header("Summarization")
-    # summarization logic
+    # --- Donut chart ---
+    tasks = {"Emails": email_count, "Summaries": summary_count,
+             "Reports": report_count, "Scheduling": scheduling_count}
+    fig1 = px.pie(names=list(tasks.keys()), values=list(tasks.values()), hole=0.4,
+                  title="Tasks Automated Breakdown")
+    st.plotly_chart(fig1, use_container_width=True)
 
-elif menu == "📊 Reports":
-    st.header("Report Generator")
-    # report generation + charts + PDF export
+    # --- Gauge chart ---
+    fig2 = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=time_saved,
+        title={'text': "Time Saved (hrs)"},
+        gauge={'axis': {'range': [0, 40]}, 'bar': {'color': "green"}}
+    ))
+    st.plotly_chart(fig2, use_container_width=True)
 
-elif menu == "⬇ Downloads":
-    st.header("Downloads")
-    # download buttons
-
-elif other == "📈 Data Visualization":
-    st.header("Workflow Insights Dashboard")
-    # toggle charts block
-
-elif other == "⚙ Settings":
-    st.header("Settings")
-    # theme toggle, clear chat, etc.
-
+    # --- Progress bars ---
+    workflows = {"Drafting Reports": report_count*10,
+                 "Summarizing Meetings": summary_count*5,
+                 "Email Automation": email_count*8}
+    fig3 = go.Figure()
+    for task, progress in workflows.items():
+        fig3.add_trace(go.Bar(
+            x=[min(progress,100)],
+            y=[task],
+            orientation='h',
+            text=f"{min(progress,100)}%",
+            textposition="outside"
+        ))
+    fig3.update_layout(title="Active Workflows Progress", xaxis=dict(range=[0,100]))
+    st.plotly_chart(fig3, use_container_width=True)
