@@ -279,7 +279,7 @@ with st.sidebar.expander("☰ Tools", expanded=False):
             file_name="chat_history.txt",
             mime="text/plain")
 
-    # =========================
+ # =========================
 # DATA VISUALIZATION TOGGLE
 # =========================
 st.sidebar.markdown("#### Data Visualization")
