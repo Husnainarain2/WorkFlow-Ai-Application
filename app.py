@@ -1,16 +1,7 @@
 import os
 import sqlite3
 import streamlit as st
-import firebase_admin
-from firebase_admin import credentials, auth
 from groq import Groq
-
-# =========================
-# FIREBASE INIT
-# =========================
-if not firebase_admin._apps:
-    cred = credentials.Certificate("serviceAccountKey.json")
-    firebase_admin.initialize_app(cred)
 
 # =========================
 # PAGE CONFIG
@@ -18,17 +9,20 @@ if not firebase_admin._apps:
 st.set_page_config(page_title="Workflow AI Pro", layout="centered")
 
 # =========================
-# GROQ API
-# =========================
-api_key = os.getenv("GROQ_API_KEY")
-client = Groq(api_key=api_key)
-
-# =========================
-# DB
+# DB SETUP (USERS + CHAT)
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
 
+# USERS TABLE
+c.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    username TEXT PRIMARY KEY,
+    password TEXT
+)
+""")
+
+# CHAT TABLE
 c.execute("""
 CREATE TABLE IF NOT EXISTS chat_history (
     user TEXT,
@@ -36,6 +30,7 @@ CREATE TABLE IF NOT EXISTS chat_history (
     message TEXT
 )
 """)
+
 conn.commit()
 
 # =========================
@@ -47,49 +42,50 @@ if "user" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+if "mode" not in st.session_state:
+    st.session_state.mode = "chat"
+
+if "stop_stream" not in st.session_state:
+    st.session_state.stop_stream = False
+
 # =========================
-# AUTH UI
+# AUTH PAGE (LOGIN + SIGNUP)
 # =========================
 def auth_page():
+    st.title("🔐 Workflow AI Login System")
 
-    st.title("🔐 Login / Signup / Google Auth")
-
-    tab1, tab2, tab3 = st.tabs(["Login", "Sign Up", "Google Login"])
+    tab1, tab2 = st.tabs(["Login", "Sign Up"])
 
     # ---------------- LOGIN ----------------
     with tab1:
-        email = st.text_input("Login Email")
+        username = st.text_input("Login Username")
         password = st.text_input("Password", type="password")
 
         if st.button("Login"):
-            try:
-                user = auth.get_user_by_email(email)
-                st.session_state.user = email
-                st.success("Login successful")
+            c.execute("SELECT * FROM users WHERE username=? AND password=?",
+                      (username, password))
+            user = c.fetchone()
+
+            if user:
+                st.session_state.user = username
+                st.success("Login successful!")
                 st.rerun()
-            except:
-                st.error("User not found")
+            else:
+                st.error("Invalid credentials")
 
     # ---------------- SIGNUP ----------------
     with tab2:
-        email = st.text_input("Signup Email")
-        password = st.text_input("Password", type="password")
+        new_user = st.text_input("Create Username")
+        new_pass = st.text_input("Create Password", type="password")
 
-        if st.button("Create Account"):
+        if st.button("Sign Up"):
             try:
-                auth.create_user(email=email, password=password)
+                c.execute("INSERT INTO users VALUES (?,?)",
+                          (new_user, new_pass))
+                conn.commit()
                 st.success("Account created! Now login")
             except:
-                st.error("Error creating account")
-
-    # ---------------- GOOGLE LOGIN ----------------
-    with tab3:
-        st.info("Use Firebase Google Sign-In (frontend redirect required)")
-        st.markdown("👉 Enable Google login in Firebase Auth")
-
-        if st.button("Continue with Google"):
-            st.warning("Use Firebase hosted auth or redirect flow for full Google OAuth")
-            st.info("After setup, user will auto-login here")
+                st.error("Username already exists")
 
 # =========================
 # CHECK LOGIN
@@ -99,6 +95,16 @@ if not st.session_state.user:
     st.stop()
 
 user = st.session_state.user
+
+# =========================
+# API KEY
+# =========================
+api_key = os.getenv("GROQ_API_KEY")
+if not api_key:
+    st.error("Add GROQ_API_KEY in Streamlit Secrets")
+    st.stop()
+
+client = Groq(api_key=api_key)
 
 # =========================
 # LOAD HISTORY (USER BASED)
@@ -114,7 +120,7 @@ if len(st.session_state.messages) == 0:
     load_history()
 
 # =========================
-# AI STREAM
+# STREAMING AI
 # =========================
 def ask_ai_stream(messages):
     response = client.chat.completions.create(
@@ -123,25 +129,40 @@ def ask_ai_stream(messages):
         stream=True
     )
 
-    full = ""
-    box = st.empty()
+    full_response = ""
+    placeholder = st.empty()
 
     for chunk in response:
-        if chunk.choices[0].delta.content:
-            full += chunk.choices[0].delta.content
-            box.markdown(full)
+        if st.session_state.stop_stream:
+            break
 
-    return full
+        if chunk.choices[0].delta.content:
+            full_response += chunk.choices[0].delta.content
+            placeholder.markdown(full_response)
+
+    return full_response
 
 # =========================
 # SIDEBAR
 # =========================
-st.sidebar.title(f"👤 {user}")
+st.sidebar.title(f"⚙️ Workflow AI ({user})")
 
 if st.sidebar.button("🚪 Logout"):
     st.session_state.user = None
     st.session_state.messages = []
     st.rerun()
+
+if st.sidebar.button("💬 Chat"):
+    st.session_state.mode = "chat"
+
+if st.sidebar.button("📧 Email"):
+    st.session_state.mode = "email"
+
+if st.sidebar.button("📊 Report"):
+    st.session_state.mode = "report"
+
+if st.sidebar.button("📝 Summarizer"):
+    st.session_state.mode = "summary"
 
 if st.sidebar.button("🧹 Clear Chat"):
     st.session_state.messages = []
@@ -150,22 +171,36 @@ if st.sidebar.button("🧹 Clear Chat"):
     st.rerun()
 
 # =========================
-# UI
+# TITLE
 # =========================
-st.title("🤖 Workflow AI Pro (Full SaaS Auth)")
+st.title("🤖 ChatGPT Style AI Pro")
 
+# =========================
+# SHOW CHAT
+# =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # =========================
+# STOP BUTTON
+# =========================
+if st.button("⛔ Stop Generating"):
+    st.session_state.stop_stream = True
+
+# =========================
 # CHAT INPUT
 # =========================
-user_input = st.chat_input("Ask AI...")
+user_input = st.chat_input("Message AI...")
 
 if user_input:
 
+    st.session_state.stop_stream = False
+
     st.session_state.messages.append({"role": "user", "content": user_input})
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
     c.execute("INSERT INTO chat_history VALUES (?,?,?)",
               (user, "user", user_input))
@@ -179,3 +214,43 @@ if user_input:
     c.execute("INSERT INTO chat_history VALUES (?,?,?)",
               (user, "assistant", reply))
     conn.commit()
+
+# =========================
+# TOOLS
+# =========================
+if st.session_state.mode == "email":
+    st.subheader("📧 Email Generator")
+    subject = st.text_input("Subject")
+    body = st.text_area("Body")
+
+    if st.button("Generate Email"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write professional email"},
+            {"role": "user", "content": f"{subject}\n{body}"}
+        ])
+        st.write(result)
+
+if st.session_state.mode == "report":
+    st.subheader("📊 Report Generator")
+    topic = st.text_input("Topic")
+
+    if st.button("Generate Report"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write structured report"},
+            {"role": "user", "content": topic}
+        ])
+        st.write(result)
+
+if st.session_state.mode == "summary":
+    st.subheader("📝 Summarizer")
+    text = st.text_area("Paste text")
+
+    if st.button("Summarize"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Summarize in bullet points"},
+            {"role": "user", "content": text}
+        ])
+        st.write(result)
+
+# reset
+st.session_state.stop_stream = False
