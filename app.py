@@ -2,6 +2,9 @@ import os, sqlite3, json, hashlib, datetime
 import streamlit as st
 from groq import Groq
 from fpdf import FPDF
+import plotly.express as px
+import plotly.graph_objects as go
+
 
 # =========================
 # API KEY
@@ -184,6 +187,27 @@ if st.session_state.messages:
         data="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages]),
         file_name="chat_history.txt",
         mime="text/plain")
+
+st.sidebar.markdown("### 📈 Data Visualization")
+
+if st.sidebar.button("Show Sample Chart"):
+    st.session_state.show_chart = True
+
+if "show_chart" in st.session_state and st.session_state.show_chart:
+    st.subheader("Interactive Chart Example")
+
+    # Example: Bar chart of message counts
+    user_msgs = sum(1 for m in st.session_state.messages if m["role"] == "user")
+    ai_msgs = sum(1 for m in st.session_state.messages if m["role"] == "assistant")
+
+    fig = px.bar(
+        x=["User Messages", "AI Messages"],
+        y=[user_msgs, ai_msgs],
+        labels={"x": "Role", "y": "Count"},
+        title="Message Distribution"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # History
 st.sidebar.markdown("### Search History")
