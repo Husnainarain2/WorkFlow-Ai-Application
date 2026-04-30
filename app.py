@@ -114,22 +114,34 @@ if st.sidebar.button("🌗 Toggle Theme"):
     toggle_theme()
     st.rerun()
 
+# --- Download Chat ---
+st.sidebar.subheader("⬇ Download Chat")
+if st.session_state.messages:
+    st.sidebar.download_button(
+        label="Download JSON",
+        data=json.dumps(st.session_state.messages, indent=2),
+        file_name="chat_history.json",
+        mime="application/json"
+    )
+    st.sidebar.download_button(
+        label="Download TXT",
+        data="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages]),
+        file_name="chat_history.txt",
+        mime="text/plain"
+    )
+
+# --- Show History ---
 st.sidebar.subheader("🔎 Search History")
 c.execute("SELECT query FROM history WHERE username=?", (st.session_state.user,))
 rows = c.fetchall()
-
-# Show last 10 queries as clickable buttons
 for i, r in enumerate(rows[-10:]):
     if st.sidebar.button(r[0], key=f"hist_{i}"):
-        # Add the old query back into chat
         st.session_state.messages.append({"role": "user", "content": r[0]})
         with st.chat_message("user"):
             st.markdown(r[0])
-
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 reply = ask_ai(st.session_state.messages)
                 st.markdown(reply)
-
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.rerun()
