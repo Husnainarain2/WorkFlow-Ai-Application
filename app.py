@@ -11,78 +11,67 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Workflow AI", layout="wide")
 
 # =========================
-# PREMIUM UI CSS
+# LIGHT PREMIUM CSS
 # =========================
 st.markdown("""
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 <style>
+
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: #f5f7fb;
     font-family: 'Inter', sans-serif;
 }
 
+/* Main container */
 .block-container {
-    background: rgba(255,255,255,0.05);
     padding: 2rem;
-    border-radius: 20px;
-    backdrop-filter: blur(20px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
 }
 
+/* Cards */
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    text-align:center;
+}
+
+/* Chat */
 .stChatMessage {
-    border-radius: 15px !important;
+    border-radius: 12px !important;
     padding: 12px !important;
-    margin-bottom: 10px !important;
-    animation: fadeIn 0.4s ease-in-out;
 }
 
 [data-testid="stChatMessage-user"] {
-    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    background: #2563eb;
     color: white;
 }
 
 [data-testid="stChatMessage-assistant"] {
-    background: rgba(255,255,255,0.08);
-    color: #e5e7eb;
+    background: #f1f5f9;
 }
 
-.stChatInput input {
-    border-radius: 12px !important;
-    padding: 12px !important;
-    background: rgba(255,255,255,0.1);
-    color: white;
-}
-
+/* Buttons */
 .stButton>button {
-    border-radius: 12px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-radius: 10px;
+    background: #2563eb;
     color: white;
     border: none;
-    padding: 10px 16px;
-    transition: all 0.3s ease;
 }
 .stButton>button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(99,102,241,0.5);
+    background: #1e40af;
 }
 
+/* Sidebar */
 section[data-testid="stSidebar"] {
-    background: rgba(15,23,42,0.9);
-    backdrop-filter: blur(10px);
+    background: white;
 }
 
-.card {
-    background: rgba(255,255,255,0.05);
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    text-align:center;
+/* Input */
+.stChatInput input {
+    border-radius: 10px;
 }
 
-@keyframes fadeIn {
-    from {opacity:0; transform:translateY(10px);}
-    to {opacity:1; transform:translateY(0);}
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -105,7 +94,7 @@ c.execute("CREATE TABLE IF NOT EXISTS history (username TEXT, query TEXT)")
 conn.commit()
 
 # =========================
-# STATE
+# SESSION
 # =========================
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -115,25 +104,27 @@ if "user" not in st.session_state:
 # =========================
 # HEADER
 # =========================
-st.markdown("""
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <h2>🚀 Workflow AI</h2>
-    <span style="color:#94a3b8;">Premium Dashboard</span>
-</div>
-""", unsafe_allow_html=True)
+st.title("🚀 Workflow AI")
+
+# =========================
+# CHAT DISPLAY
+# =========================
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
 # =========================
 # AI FUNCTION
 # =========================
 def ask_ai(messages):
-    response = client.chat.completions.create(
+    res = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=messages
     )
-    return response.choices[0].message.content
+    return res.choices[0].message.content
 
 # =========================
-# PDF
+# PDF FUNCTION
 # =========================
 def create_pdf(title, content):
     pdf = FPDF()
@@ -144,13 +135,6 @@ def create_pdf(title, content):
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0,10,content)
     return pdf.output(dest="S").encode("latin1")
-
-# =========================
-# CHAT DISPLAY
-# =========================
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
 
 # =========================
 # INPUT
@@ -198,37 +182,78 @@ if user_input:
     st.session_state.messages.append({"role":"assistant","content":reply})
 
 # =========================
-# SIDEBAR
+# SIDEBAR (ALL TOOLS HERE)
 # =========================
-st.sidebar.title("⚡ Controls")
+st.sidebar.title("⚙️ Tools")
 
-if st.sidebar.button("Clear Chat"):
-    st.session_state.messages=[]
+# --- Chat Control ---
+if st.sidebar.button("🧹 Clear Chat"):
+    st.session_state.messages = []
     st.rerun()
 
-if st.sidebar.button("Delete History"):
-    c.execute("DELETE FROM history")
+# --- History ---
+st.sidebar.subheader("History")
+c.execute("SELECT rowid, query FROM history WHERE username=?", (st.session_state.user,))
+rows = c.fetchall()
+
+for i,(rowid,query) in enumerate(rows[-10:]):
+    col1,col2 = st.sidebar.columns([3,1])
+    with col1:
+        if st.button(query, key=f"h{i}"):
+            st.session_state.messages.append({"role":"user","content":query})
+            reply = ask_ai(st.session_state.messages)
+            st.session_state.messages.append({"role":"assistant","content":reply})
+            st.rerun()
+    with col2:
+        if st.button("❌", key=f"d{i}"):
+            c.execute("DELETE FROM history WHERE rowid=?", (rowid,))
+            conn.commit()
+            st.rerun()
+
+if st.sidebar.button("Delete All History"):
+    c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
     conn.commit()
     st.rerun()
 
-# =========================
-# HISTORY
-# =========================
-st.sidebar.subheader("History")
-c.execute("SELECT query FROM history")
-rows=c.fetchall()
+# --- Email Tool ---
+st.sidebar.subheader("📧 Email Generator")
+subject = st.sidebar.text_input("Subject")
+body = st.sidebar.text_area("Body")
 
-for i,row in enumerate(rows[-10:]):
-    if st.sidebar.button(row[0], key=i):
-        st.session_state.messages.append({"role":"user","content":row[0]})
-        reply = ask_ai(st.session_state.messages)
-        st.session_state.messages.append({"role":"assistant","content":reply})
-        st.rerun()
+if st.sidebar.button("Generate Email"):
+    reply = ask_ai([
+        {"role":"system","content":"Write professional email"},
+        {"role":"user","content":f"{subject}\n{body}"}
+    ])
+    st.sidebar.markdown(reply)
+
+# --- Summarize ---
+if st.sidebar.button("📄 Summarize Chat"):
+    summary = ask_ai([
+        {"role":"system","content":"Summarize chat"},
+        {"role":"user","content":str(st.session_state.messages)}
+    ])
+    st.sidebar.markdown(summary)
+
+# --- Report ---
+st.sidebar.subheader("📊 Report")
+topic = st.sidebar.text_input("Report Topic")
+
+if st.sidebar.button("Generate Report"):
+    report = ask_ai([
+        {"role":"system","content":"Write report"},
+        {"role":"user","content":topic}
+    ])
+    st.markdown(report)
+
+    st.download_button("Download TXT", report, "report.txt")
+    pdf_bytes = create_pdf(topic, report)
+    st.download_button("Download PDF", pdf_bytes, "report.pdf")
 
 # =========================
 # DASHBOARD
 # =========================
-st.subheader("📊 Insights")
+st.subheader("📊 Dashboard")
 
 email_count = sum(1 for m in st.session_state.messages if "email" in m["content"].lower())
 report_count = sum(1 for m in st.session_state.messages if "report" in m["content"].lower())
@@ -237,11 +262,11 @@ summary_count = sum(1 for m in st.session_state.messages if "summary" in m["cont
 col1,col2,col3 = st.columns(3)
 
 with col1:
-    st.markdown(f"<div class='card'><h3>Emails</h3><h1>{email_count}</h1></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card'><h3>Emails</h3><h2>{email_count}</h2></div>", unsafe_allow_html=True)
 with col2:
-    st.markdown(f"<div class='card'><h3>Reports</h3><h1>{report_count}</h1></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card'><h3>Reports</h3><h2>{report_count}</h2></div>", unsafe_allow_html=True)
 with col3:
-    st.markdown(f"<div class='card'><h3>Summaries</h3><h1>{summary_count}</h1></div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='card'><h3>Summaries</h3><h2>{summary_count}</h2></div>", unsafe_allow_html=True)
 
 fig = px.pie(
     names=["Emails","Reports","Summaries"],
@@ -249,15 +274,3 @@ fig = px.pie(
     hole=0.4
 )
 st.plotly_chart(fig, use_container_width=True)
-
-# =========================
-# DOWNLOAD
-# =========================
-if st.session_state.messages:
-    st.download_button("Download Chat JSON",
-        data=json.dumps(st.session_state.messages,indent=2),
-        file_name="chat.json")
-
-    st.download_button("Download TXT",
-        data="\n".join([m["content"] for m in st.session_state.messages]),
-        file_name="chat.txt")
