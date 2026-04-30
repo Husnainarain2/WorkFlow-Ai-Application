@@ -1,16 +1,12 @@
 import os
 import sqlite3
-import json
-import datetime
-import tempfile
 import streamlit as st
 from groq import Groq
-from fpdf import FPDF
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="Workflow AI", layout="centered")
+st.set_page_config(page_title="Workflow AI Pro", layout="centered")
 
 # =========================
 # API KEY
@@ -23,7 +19,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # =========================
-# DB SETUP
+# DB
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
@@ -36,204 +32,150 @@ conn.commit()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "user" not in st.session_state:
-    st.session_state.user = "guest"
+if "stop_stream" not in st.session_state:
+    st.session_state.stop_stream = False
 
-if "email_mode" not in st.session_state:
-    st.session_state.email_mode = False
-
-if "report_mode" not in st.session_state:
-    st.session_state.report_mode = False
-
-if "summary_mode" not in st.session_state:
-    st.session_state.summary_mode = False
+if "mode" not in st.session_state:
+    st.session_state.mode = "chat"
 
 # =========================
-# UI TITLE
+# STREAMING AI (CHATGPT STYLE)
 # =========================
-st.title("🚀 Workflow AI Chat")
-
-# =========================
-# SHOW CHAT
-# =========================
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# =========================
-# AI FUNCTION
-# =========================
-def ask_ai(messages):
+def ask_ai_stream(messages):
     response = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=messages
+        messages=messages,
+        stream=True
     )
-    return response.choices[0].message.content
+
+    full_response = ""
+    placeholder = st.empty()
+
+    for chunk in response:
+        if st.session_state.stop_stream:
+            break
+
+        if chunk.choices[0].delta.content:
+            full_response += chunk.choices[0].delta.content
+            placeholder.markdown(full_response)
+
+    return full_response
 
 # =========================
-# CHAT INPUT
+# STOP BUTTON
 # =========================
-user_input = st.chat_input("Type your message...")
-
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
-
-    c.execute("INSERT INTO history VALUES (?,?)",
-              (st.session_state.user, user_input))
-    conn.commit()
-
-    with st.chat_message("user"):
-        st.markdown(user_input)
-
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            reply = ask_ai(st.session_state.messages)
-            st.markdown(reply)
-
-    st.session_state.messages.append({"role": "assistant", "content": reply})
+if st.button("⛔ Stop Generating"):
+    st.session_state.stop_stream = True
 
 # =========================
-# EMAIL GENERATOR
+# SIDEBAR NAVIGATION
 # =========================
-if st.session_state.email_mode:
+st.sidebar.title("⚙️ Workflow AI")
 
-    st.subheader("📧 Email Generator")
+if st.sidebar.button("💬 Chat"):
+    st.session_state.mode = "chat"
 
-    subject = st.text_input("Subject")
-    body = st.text_area("Email Content")
+if st.sidebar.button("📧 Email"):
+    st.session_state.mode = "email"
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Generate Email"):
-            reply = ask_ai([
-                {"role": "system", "content": "Write a professional email."},
-                {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
-            ])
-            st.session_state.email_output = reply
-
-    with col2:
-        if st.button("Close Email Tool"):
-            st.session_state.email_mode = False
-            st.rerun()
-
-    if "email_output" in st.session_state:
-        st.markdown("### ✉️ Generated Email")
-        st.markdown(st.session_state.email_output)
-
-# =========================
-# REPORT GENERATOR
-# =========================
-if st.session_state.report_mode:
-
-    st.subheader("📊 Report Generator")
-
-    topic = st.text_input("Report Topic")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Create Report"):
-            report = ask_ai([
-                {"role": "system", "content": "Write a professional structured report."},
-                {"role": "user", "content": topic}
-            ])
-            st.session_state.report_output = report
-
-    with col2:
-        if st.button("Close Report Tool"):
-            st.session_state.report_mode = False
-            st.rerun()
-
-    if "report_output" in st.session_state:
-        st.markdown("### 📄 Report")
-        st.markdown(st.session_state.report_output)
-
-# =========================
-# TEXT SUMMARIZER
-# =========================
-if st.session_state.summary_mode:
-
-    st.subheader("📝 Text Summarizer")
-
-    text_input = st.text_area("Paste text here")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Summarize"):
-            summary = ask_ai([
-                {
-                    "role": "system",
-                    "content": "Summarize the text into clear bullet points. Keep only key ideas."
-                },
-                {
-                    "role": "user",
-                    "content": text_input
-                }
-            ])
-            st.session_state.summary_output = summary
-
-    with col2:
-        if st.button("Close Summarizer"):
-            st.session_state.summary_mode = False
-            st.rerun()
-
-    if "summary_output" in st.session_state:
-        st.markdown("### ✨ Summary")
-        st.markdown(st.session_state.summary_output)
-
-# =========================
-# SIDEBAR
-# =========================
-st.sidebar.title("⚙️ Tools")
-
-# Triggers
-if st.sidebar.button("📧 Email Generator"):
-    st.session_state.email_mode = True
-    st.session_state.report_mode = False
-    st.session_state.summary_mode = False
-
-if st.sidebar.button("📊 Report Generator"):
-    st.session_state.report_mode = True
-    st.session_state.email_mode = False
-    st.session_state.summary_mode = False
+if st.sidebar.button("📊 Report"):
+    st.session_state.mode = "report"
 
 if st.sidebar.button("📝 Summarizer"):
-    st.session_state.summary_mode = True
-    st.session_state.email_mode = False
-    st.session_state.report_mode = False
+    st.session_state.mode = "summary"
 
 if st.sidebar.button("🧹 Clear Chat"):
     st.session_state.messages = []
     st.rerun()
 
 # =========================
-# HISTORY
+# AUTO SCROLL (CHATGPT FEEL)
 # =========================
-st.sidebar.subheader("History")
+st.markdown("""
+<script>
+const scrollToBottom = () => {
+    window.scrollTo(0, document.body.scrollHeight);
+};
+scrollToBottom();
+</script>
+""", unsafe_allow_html=True)
 
-c.execute("SELECT rowid, query FROM history WHERE username=?",
-          (st.session_state.user,))
-rows = c.fetchall()
+# =========================
+# CHAT UI
+# =========================
+st.title("🤖 ChatGPT Style AI Pro")
 
-for i, (rowid, query) in enumerate(rows[-10:]):
-    col1, col2 = st.sidebar.columns([3, 1])
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-    with col1:
-        if st.button(query, key=f"h{i}"):
-            st.session_state.messages.append({"role": "user", "content": query})
-            reply = ask_ai(st.session_state.messages)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-            st.rerun()
+# =========================
+# CHAT INPUT
+# =========================
+user_input = st.chat_input("Message AI...")
 
-    with col2:
-        if st.button("❌", key=f"d{i}"):
-            c.execute("DELETE FROM history WHERE rowid=?", (rowid,))
-            conn.commit()
-            st.rerun()
+if user_input:
+    st.session_state.stop_stream = False
 
-if st.sidebar.button("Delete All History"):
-    c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
+    st.session_state.messages.append({"role": "user", "content": user_input})
+
+    c.execute("INSERT INTO history VALUES (?,?)",
+              ("guest", user_input))
     conn.commit()
-    st.rerun()
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    with st.chat_message("assistant"):
+        reply = ask_ai_stream(st.session_state.messages)
+
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+
+# =========================
+# EMAIL TOOL
+# =========================
+if st.session_state.mode == "email":
+    st.subheader("📧 Email Generator")
+
+    subject = st.text_input("Subject")
+    body = st.text_area("Body")
+
+    if st.button("Generate Email"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write professional email"},
+            {"role": "user", "content": f"{subject}\n{body}"}
+        ])
+        st.write(result)
+
+# =========================
+# REPORT TOOL
+# =========================
+if st.session_state.mode == "report":
+    st.subheader("📊 Report Generator")
+
+    topic = st.text_input("Topic")
+
+    if st.button("Generate Report"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write structured report"},
+            {"role": "user", "content": topic}
+        ])
+        st.write(result)
+
+# =========================
+# SUMMARY TOOL
+# =========================
+if st.session_state.mode == "summary":
+    st.subheader("📝 Summarizer")
+
+    text = st.text_area("Paste text")
+
+    if st.button("Summarize"):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Summarize in bullet points"},
+            {"role": "user", "content": text}
+        ])
+        st.write(result)
+
+# reset stop flag after each run
+st.session_state.stop_stream = False
