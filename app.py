@@ -135,11 +135,36 @@ def create_report_pdf(title, content, charts=None):
     return pdf.output(dest="S").encode("latin1")
 
 # =========================
-# INPUT
+# INPUT SECTION
 # =========================
-user_input = st.chat_input("Type your message...")
+col1, col2 = st.columns([2,2])
 
-if user_input:
+with col1:
+    user_input = st.chat_input("Type your message...")
+
+with col2:
+    uploaded_pdf = st.file_uploader("Upload a PDF", type=["pdf"])
+
+if uploaded_pdf is not None:
+    import PyPDF2
+    reader = PyPDF2.PdfReader(uploaded_pdf)
+    text_content = ""
+    for page in reader.pages:
+        text_content += page.extract_text() + "\n"
+
+    st.subheader("Uploaded PDF Content")
+    st.text_area("Extracted Text", text_content, height=300)
+
+    # Optionally, send PDF text to AI
+    if st.button("Ask AI about PDF"):
+        reply = ask_ai([
+            {"role": "system", "content": "You are an assistant that analyzes PDF content."},
+            {"role": "user", "content": text_content}
+        ])
+        st.subheader("AI Response")
+        st.markdown(reply)
+
+elif user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
     c.execute("INSERT INTO history VALUES (?,?)", (st.session_state.user, user_input))
     conn.commit()
@@ -153,7 +178,7 @@ if user_input:
             st.markdown(reply)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
-# =========================
+
 # SIDEBAR
 # =========================
 st.sidebar.markdown("### Search History")
