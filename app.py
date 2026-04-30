@@ -17,7 +17,7 @@ client = Groq(api_key=api_key)
 # UI
 # =========================
 st.set_page_config(page_title="Workflow AI", layout="centered")
-st.title("🚀 Workflow AI Chat")
+st.title("Workflow AI Chat")
 
 # =========================
 # CHAT HISTORY
