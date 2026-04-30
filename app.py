@@ -9,6 +9,33 @@ from groq import Groq
 st.set_page_config(page_title="Workflow AI Pro", layout="centered")
 
 # =========================
+# LOGIN SYSTEM (ADDED)
+# =========================
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+def login_page():
+    st.title("🔐 Login to Workflow AI")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if username:
+            st.session_state.user = username
+            st.success("Login successful!")
+            st.rerun()
+        else:
+            st.error("Enter username")
+
+# If not logged in → show login page ONLY
+if not st.session_state.user:
+    login_page()
+    st.stop()
+
+user = st.session_state.user
+
+# =========================
 # API KEY
 # =========================
 api_key = os.getenv("GROQ_API_KEY")
@@ -45,10 +72,8 @@ if "mode" not in st.session_state:
 if "stop_stream" not in st.session_state:
     st.session_state.stop_stream = False
 
-user = "guest"
-
 # =========================
-# LOAD HISTORY (IMPORTANT FIX)
+# LOAD HISTORY (NOW USER-BASED)
 # =========================
 def load_history():
     c.execute("SELECT role, message FROM chat_history WHERE user=?", (user,))
@@ -61,7 +86,7 @@ if len(st.session_state.messages) == 0:
     load_history()
 
 # =========================
-# STREAMING AI (CHATGPT STYLE)
+# STREAMING AI
 # =========================
 def ask_ai_stream(messages):
     response = client.chat.completions.create(
@@ -86,7 +111,13 @@ def ask_ai_stream(messages):
 # =========================
 # SIDEBAR NAVIGATION
 # =========================
-st.sidebar.title("⚙️ Workflow AI")
+st.sidebar.title(f"⚙️ Workflow AI ({user})")
+
+# 🔴 Logout (ADDED)
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.user = None
+    st.session_state.messages = []
+    st.rerun()
 
 if st.sidebar.button("💬 Chat"):
     st.session_state.mode = "chat"
@@ -133,26 +164,22 @@ if user_input:
 
     st.session_state.stop_stream = False
 
-    # SHOW USER MESSAGE
     st.session_state.messages.append({"role": "user", "content": user_input})
 
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    # SAVE USER MESSAGE
     c.execute(
         "INSERT INTO chat_history VALUES (?,?,?)",
         (user, "user", user_input)
     )
     conn.commit()
 
-    # AI RESPONSE
     with st.chat_message("assistant"):
         reply = ask_ai_stream(st.session_state.messages)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
 
-    # SAVE AI MESSAGE
     c.execute(
         "INSERT INTO chat_history VALUES (?,?,?)",
         (user, "assistant", reply)
