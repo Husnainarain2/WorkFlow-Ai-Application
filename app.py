@@ -179,3 +179,18 @@ if st.session_state.mode == "summary":
 
 # reset stop flag after each run
 st.session_state.stop_stream = False
+
+# save history
+        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+                  (st.session_state.user, "user", user_input))
+        conn.commit()
+
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                reply = ask_ai(st.session_state.messages, memory)
+                st.markdown(reply)
+
+        st.session_state.messages.append({"role": "assistant", "content": reply})
