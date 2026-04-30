@@ -29,62 +29,26 @@ conn.commit()
 st.set_page_config(page_title="Workflow AI", layout="centered")
 
 
-# =========================
-# CUSTOM CSS STYLES
-# =========================
 st.markdown("""
 <style>
-/* General App Styling */
-.stApp {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
-
-/* Sidebar Styling */
-section[data-testid="stSidebar"] {
-    background-color: #f4f6f9;
-    padding: 15px;
-    border-right: 1px solid #ddd;
-}
-
-/* Buttons */
-div.stButton > button {
+/* Sidebar hamburger icon */
+.sidebar-toggle {
+    font-size: 24px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
     background-color: #2563eb;
     color: white;
-    border-radius: 8px;
-    border: none;
-    padding: 8px 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
+    text-align: center;
+    margin-bottom: 10px;
+    transition: background-color 0.3s ease;
 }
-div.stButton > button:hover {
+.sidebar-toggle:hover {
     background-color: #1e40af;
-    transform: translateY(-2px);
-}
-
-/* Download Buttons */
-.stDownloadButton > button {
-    background-color: #10b981;
-    color: white;
-    border-radius: 8px;
-    border: none;
-    padding: 8px 16px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-}
-.stDownloadButton > button:hover {
-    background-color: #047857;
-    transform: translateY(-2px);
-}
-
-/* Chat Messages */
-.stChatMessage {
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # =========================
@@ -176,99 +140,9 @@ if user_input:
             st.markdown(reply)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
-
 # =========================
 # SIDEBAR
 # =========================
-st.sidebar.markdown("## Tools")
-
-# Chat Controls
-if st.sidebar.button("Clear Chat"):
-    st.session_state.messages = []
-    st.rerun()
-
-if st.sidebar.button("Toggle Theme"):
-    toggle_theme()
-    st.rerun()
-
-# Email Tools
-st.sidebar.markdown("### Email")
-if st.sidebar.button("Write Email"):
-    st.session_state.email_mode = True
-if "email_mode" in st.session_state and st.session_state.email_mode:
-    st.subheader("Compose Email")
-    subject = st.text_input("Subject")
-    body = st.text_area("Body")
-    if st.button("Generate Email"):
-        reply = ask_ai([
-            {"role": "system", "content": "You are an assistant that writes professional emails."},
-            {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
-        ])
-        st.write("Suggested Email Draft:")
-        st.markdown(reply)
-
-# Summarization
-st.sidebar.markdown("### Summarization")
-if st.sidebar.button("Summarize Chat"):
-    summary = ask_ai([
-        {"role": "system", "content": "Summarize the following chat into key points."},
-        {"role": "user", "content": "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])}
-    ])
-    st.subheader("Chat Summary")
-    st.markdown(summary)
-
-# Reports
-st.sidebar.markdown("### Reports")
-if st.sidebar.button("Generate Report"):
-    st.session_state.report_mode = True
-if "report_mode" in st.session_state and st.session_state.report_mode:
-    st.subheader("Report Generator")
-    report_topic = st.text_input("Report Topic", placeholder="e.g., Project Progress, Meeting Notes")
-    if st.button("Create Report"):
-        report_text = ask_ai([
-            {"role": "system", "content": "You are an assistant that writes structured professional reports."},
-            {"role": "user", "content": f"Create a detailed report on: {report_topic}"}
-        ])
-        st.write("Generated Report:")
-        st.markdown(report_text)
-        st.download_button("Download Report (TXT)", data=report_text, file_name="report.txt", mime="text/plain")
-        pdf_bytes = create_report_pdf(report_topic, report_text)
-        st.download_button("Download Report (PDF)", data=pdf_bytes, file_name="report.pdf", mime="application/pdf")
-
-# Downloads
-st.sidebar.markdown("### Downloads")
-if st.session_state.messages:
-    st.sidebar.download_button("Download JSON",
-        data=json.dumps(st.session_state.messages, indent=2),
-        file_name="chat_history.json",
-        mime="application/json")
-    st.sidebar.download_button("Download TXT",
-        data="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages]),
-        file_name="chat_history.txt",
-        mime="text/plain")
-
-st.sidebar.markdown("### 📈 Data Visualization")
-
-if st.sidebar.button("Show Sample Chart"):
-    st.session_state.show_chart = True
-
-if "show_chart" in st.session_state and st.session_state.show_chart:
-    st.subheader("Interactive Chart Example")
-
-    # Example: Bar chart of message counts
-    user_msgs = sum(1 for m in st.session_state.messages if m["role"] == "user")
-    ai_msgs = sum(1 for m in st.session_state.messages if m["role"] == "assistant")
-
-    fig = px.bar(
-        x=["User Messages", "AI Messages"],
-        y=[user_msgs, ai_msgs],
-        labels={"x": "Role", "y": "Count"},
-        title="Message Distribution"
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-
-# History
 st.sidebar.markdown("### Search History")
 c.execute("SELECT rowid, query FROM history WHERE username=?", (st.session_state.user,))
 rows = c.fetchall()
@@ -297,3 +171,86 @@ if st.sidebar.button("Delete All History"):
     conn.commit()
     st.sidebar.success("All history deleted!")
     st.rerun()
+
+# Collapsible Tools Section
+with st.sidebar.expander("☰ Tools", expanded=False):
+    # Chat Controls
+    if st.button("Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
+
+    if st.button("Toggle Theme"):
+        toggle_theme()
+        st.rerun()
+
+    # Email Tools
+    st.markdown("#### Email")
+    if st.button("Write Email"):
+        st.session_state.email_mode = True
+    if "email_mode" in st.session_state and st.session_state.email_mode:
+        st.subheader("Compose Email")
+        subject = st.text_input("Subject")
+        body = st.text_area("Body")
+        if st.button("Generate Email"):
+            reply = ask_ai([
+                {"role": "system", "content": "You are an assistant that writes professional emails."},
+                {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
+            ])
+            st.write("Suggested Email Draft:")
+            st.markdown(reply)
+
+    # Summarization
+    st.markdown("#### Summarization")
+    if st.button("Summarize Chat"):
+        summary = ask_ai([
+            {"role": "system", "content": "Summarize the following chat into key points."},
+            {"role": "user", "content": "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])}
+        ])
+        st.subheader("Chat Summary")
+        st.markdown(summary)
+
+    # Reports
+    st.markdown("#### Reports")
+    if st.button("Generate Report"):
+        st.session_state.report_mode = True
+    if "report_mode" in st.session_state and st.session_state.report_mode:
+        st.subheader("Report Generator")
+        report_topic = st.text_input("Report Topic", placeholder="e.g., Project Progress, Meeting Notes")
+        if st.button("Create Report"):
+            report_text = ask_ai([
+                {"role": "system", "content": "You are an assistant that writes structured professional reports."},
+                {"role": "user", "content": f"Create a detailed report on: {report_topic}"}
+            ])
+            st.write("Generated Report:")
+            st.markdown(report_text)
+            st.download_button("Download Report (TXT)", data=report_text, file_name="report.txt", mime="text/plain")
+            pdf_bytes = create_report_pdf(report_topic, report_text)
+            st.download_button("Download Report (PDF)", data=pdf_bytes, file_name="report.pdf", mime="application/pdf")
+
+    # Downloads
+    st.markdown("#### Downloads")
+    if st.session_state.messages:
+        st.download_button("Download JSON",
+            data=json.dumps(st.session_state.messages, indent=2),
+            file_name="chat_history.json",
+            mime="application/json")
+        st.download_button("Download TXT",
+            data="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages]),
+            file_name="chat_history.txt",
+            mime="text/plain")
+
+    # Data Visualization
+    st.markdown("#### Data Visualization")
+    if st.button("Show Sample Chart"):
+        st.session_state.show_chart = True
+    if "show_chart" in st.session_state and st.session_state.show_chart:
+        st.subheader("Interactive Chart Example")
+        user_msgs = sum(1 for m in st.session_state.messages if m["role"] == "user")
+        ai_msgs = sum(1 for m in st.session_state.messages if m["role"] == "assistant")
+        fig = px.bar(
+            x=["User Messages", "AI Messages"],
+            y=[user_msgs, ai_msgs],
+            labels={"x": "Role", "y": "Count"},
+            title="Message Distribution"
+        )
+        st.plotly_chart(fig, use_container_width=True)
