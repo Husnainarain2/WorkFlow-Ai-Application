@@ -114,22 +114,7 @@ if st.sidebar.button("🌗 Toggle Theme"):
     toggle_theme()
     st.rerun()
 
-# --- Download Chat ---
-st.sidebar.subheader("⬇ Download Chat")
-if st.session_state.messages:
-    st.sidebar.download_button(
-        label="Download JSON",
-        data=json.dumps(st.session_state.messages, indent=2),
-        file_name="chat_history.json",
-        mime="application/json"
-    )
-    st.sidebar.download_button(
-        label="Download TXT",
-        data="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages]),
-        file_name="chat_history.txt",
-        mime="text/plain"
-    )
-    # email 
+   # email 
 st.sidebar.subheader("✉️ Email Tools")
 
 if st.sidebar.button("Write Email"):
@@ -157,6 +142,23 @@ if st.sidebar.button("Summarize Chat"):
     ])
     st.write("📝 Chat Summary:")
     st.markdown(summary)
+
+# --- Download Chat ---
+st.sidebar.subheader("⬇ Download Chat")
+if st.session_state.messages:
+    st.sidebar.download_button(
+        label="Download JSON",
+        data=json.dumps(st.session_state.messages, indent=2),
+        file_name="chat_history.json",
+        mime="application/json"
+    )
+    st.sidebar.download_button(
+        label="Download TXT",
+        data="\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages]),
+        file_name="chat_history.txt",
+        mime="text/plain"
+    )
+ 
 
 # --- Show History ---
 st.sidebar.subheader("🔎 Search History")
