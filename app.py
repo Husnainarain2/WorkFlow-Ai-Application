@@ -284,57 +284,48 @@ with st.sidebar.expander("☰ Tools", expanded=False):
     if st.button("Show Dashboard Charts"):
         st.session_state.show_dashboard = True
 
-    if "show_dashboard" in st.session_state and st.session_state.show_dashboard:
-        st.subheader("Workflow Insights Dashboard")
+# Show charts in the main page (not sidebar)
+if "show_dashboard" in st.session_state and st.session_state.show_dashboard:
+    st.header("Workflow Insights Dashboard")
 
-        # --- Collect live stats from session ---
-        email_count = sum(1 for m in st.session_state.messages if "Subject:" in m["content"])
-        summary_count = sum(1 for m in st.session_state.messages if "Summary" in m["content"])
-        report_count = sum(1 for m in st.session_state.messages if "Report" in m["content"])
-        scheduling_count = sum(1 for m in st.session_state.messages if "Schedule" in m["content"])
+    # --- Collect live stats from session ---
+    email_count = sum(1 for m in st.session_state.messages if "Subject:" in m["content"])
+    summary_count = sum(1 for m in st.session_state.messages if "Summary" in m["content"])
+    report_count = sum(1 for m in st.session_state.messages if "Report" in m["content"])
+    scheduling_count = sum(1 for m in st.session_state.messages if "Schedule" in m["content"])
 
-        total_tasks = email_count + summary_count + report_count + scheduling_count
-        time_saved = round(total_tasks * 0.25, 2)  # 15 mins per task
+    total_tasks = email_count + summary_count + report_count + scheduling_count
+    time_saved = round(total_tasks * 0.25, 2)  # 15 mins per task
 
-        # --- Donut chart for tasks automated ---
-        tasks = {
-            "Emails": email_count,
-            "Summaries": summary_count,
-            "Reports": report_count,
-            "Scheduling": scheduling_count
-        }
-        fig1 = px.pie(
-            names=list(tasks.keys()),
-            values=list(tasks.values()),
-            hole=0.4,
-            title="Tasks Automated Breakdown"
-        )
-        st.plotly_chart(fig1, use_container_width=True)
+    # --- Donut chart ---
+    tasks = {"Emails": email_count, "Summaries": summary_count,
+             "Reports": report_count, "Scheduling": scheduling_count}
+    fig1 = px.pie(names=list(tasks.keys()), values=list(tasks.values()), hole=0.4,
+                  title="Tasks Automated Breakdown")
+    st.plotly_chart(fig1, use_container_width=True)
 
-        # --- Gauge chart for time saved ---
-        fig2 = go.Figure(go.Indicator(
-            mode="gauge+number",
-            value=time_saved,
-            title={'text': "Time Saved (hrs)"},
-            gauge={'axis': {'range': [0, 40]}, 'bar': {'color': "green"}}
+    # --- Gauge chart ---
+    fig2 = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=time_saved,
+        title={'text': "Time Saved (hrs)"},
+        gauge={'axis': {'range': [0, 40]}, 'bar': {'color': "green"}}
+    ))
+    st.plotly_chart(fig2, use_container_width=True)
+
+    # --- Progress bars ---
+    workflows = {"Drafting Reports": report_count*10,
+                 "Summarizing Meetings": summary_count*5,
+                 "Email Automation": email_count*8}
+    fig3 = go.Figure()
+    for task, progress in workflows.items():
+        fig3.add_trace(go.Bar(
+            x=[min(progress,100)],
+            y=[task],
+            orientation='h',
+            text=f"{min(progress,100)}%",
+            textposition="outside"
         ))
-        st.plotly_chart(fig2, use_container_width=True)
-
-        # --- Progress bars for active workflows ---
-        workflows = {
-            "Drafting Reports": report_count * 10,
-            "Summarizing Meetings": summary_count * 5,
-            "Email Automation": email_count * 8
-        }
-        fig3 = go.Figure()
-        for task, progress in workflows.items():
-            fig3.add_trace(go.Bar(
-                x=[min(progress, 100)],
-                y=[task],
-                orientation='h',
-                text=f"{min(progress,100)}%",
-                textposition="outside"
-            ))
-        fig3.update_layout(title="Active Workflows Progress", xaxis=dict(range=[0,100]))
-        st.plotly_chart(fig3, use_container_width=True)
+    fig3.update_layout(title="Active Workflows Progress", xaxis=dict(range=[0,100]))
+    st.plotly_chart(fig3, use_container_width=True)
 
