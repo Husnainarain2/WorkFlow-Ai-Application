@@ -28,6 +28,65 @@ conn.commit()
 # =========================
 st.set_page_config(page_title="Workflow AI", layout="centered")
 
+
+# =========================
+# CUSTOM CSS STYLES
+# =========================
+st.markdown("""
+<style>
+/* General App Styling */
+.stApp {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Sidebar Styling */
+section[data-testid="stSidebar"] {
+    background-color: #f4f6f9;
+    padding: 15px;
+    border-right: 1px solid #ddd;
+}
+
+/* Buttons */
+div.stButton > button {
+    background-color: #2563eb;
+    color: white;
+    border-radius: 8px;
+    border: none;
+    padding: 8px 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+div.stButton > button:hover {
+    background-color: #1e40af;
+    transform: translateY(-2px);
+}
+
+/* Download Buttons */
+.stDownloadButton > button {
+    background-color: #10b981;
+    color: white;
+    border-radius: 8px;
+    border: none;
+    padding: 8px 16px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+.stDownloadButton > button:hover {
+    background-color: #047857;
+    transform: translateY(-2px);
+}
+
+/* Chat Messages */
+.stChatMessage {
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # =========================
 # THEME HANDLING
 # =========================
