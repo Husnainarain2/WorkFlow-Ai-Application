@@ -145,3 +145,8 @@ for i, r in enumerate(rows[-10:]):
                 st.markdown(reply)
         st.session_state.messages.append({"role": "assistant", "content": reply})
         st.rerun()
+# --- Delete History ---
+if st.sidebar.button("❌ Delete All History"):
+    c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
+    conn.commit()
+    st.sidebar.success("History deleted!")
