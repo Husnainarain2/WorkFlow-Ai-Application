@@ -1,16 +1,12 @@
 import os
 import sqlite3
-import json
-import datetime
-import tempfile
 import streamlit as st
 from groq import Groq
-from fpdf import FPDF
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="Workflow AI", layout="centered")
+st.set_page_config(page_title="Workflow AI SaaS", layout="wide")
 
 # =========================
 # API KEY
@@ -23,7 +19,7 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # =========================
-# DB SETUP
+# DB
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
@@ -36,204 +32,181 @@ conn.commit()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "user" not in st.session_state:
-    st.session_state.user = "guest"
-
-if "email_mode" not in st.session_state:
-    st.session_state.email_mode = False
-
-if "report_mode" not in st.session_state:
-    st.session_state.report_mode = False
-
-if "summary_mode" not in st.session_state:
-    st.session_state.summary_mode = False
-
-# =========================
-# UI TITLE
-# =========================
-st.title("🚀 Workflow AI Chat")
-
-# =========================
-# SHOW CHAT
-# =========================
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+if "page" not in st.session_state:
+    st.session_state.page = "chat"
 
 # =========================
 # AI FUNCTION
 # =========================
 def ask_ai(messages):
-    response = client.chat.completions.create(
+    res = client.chat.completions.create(
         model="llama-3.1-8b-instant",
         messages=messages
     )
-    return response.choices[0].message.content
+    return res.choices[0].message.content
 
 # =========================
-# CHAT INPUT
+# PREMIUM CSS (SAAS STYLE)
 # =========================
-user_input = st.chat_input("Type your message...")
+st.markdown("""
+<style>
 
-if user_input:
-    st.session_state.messages.append({"role": "user", "content": user_input})
+.stApp {
+    background: #f6f7fb;
+    font-family: Inter, sans-serif;
+}
 
-    c.execute("INSERT INTO history VALUES (?,?)",
-              (st.session_state.user, user_input))
-    conn.commit()
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: white;
+    border-right: 1px solid #eee;
+}
 
-    with st.chat_message("user"):
-        st.markdown(user_input)
+/* Buttons */
+.stButton>button {
+    width: 100%;
+    border-radius: 10px;
+    padding: 10px;
+    background: #4f46e5;
+    color: white;
+    border: none;
+}
 
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            reply = ask_ai(st.session_state.messages)
-            st.markdown(reply)
+.stButton>button:hover {
+    background: #3730a3;
+}
 
-    st.session_state.messages.append({"role": "assistant", "content": reply})
+/* Chat bubbles */
+[data-testid="stChatMessage-user"] {
+    background: #4f46e5;
+    color: white;
+    border-radius: 12px;
+    padding: 10px;
+}
 
-# =========================
-# EMAIL GENERATOR
-# =========================
-if st.session_state.email_mode:
+[data-testid="stChatMessage-assistant"] {
+    background: #ffffff;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 10px;
+}
 
-    st.subheader("📧 Email Generator")
+/* Header */
+.saas-header {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
 
-    subject = st.text_input("Subject")
-    body = st.text_area("Email Content")
+/* Cards */
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Generate Email"):
-            reply = ask_ai([
-                {"role": "system", "content": "Write a professional email."},
-                {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
-            ])
-            st.session_state.email_output = reply
-
-    with col2:
-        if st.button("Close Email Tool"):
-            st.session_state.email_mode = False
-            st.rerun()
-
-    if "email_output" in st.session_state:
-        st.markdown("### ✉️ Generated Email")
-        st.markdown(st.session_state.email_output)
-
-# =========================
-# REPORT GENERATOR
-# =========================
-if st.session_state.report_mode:
-
-    st.subheader("📊 Report Generator")
-
-    topic = st.text_input("Report Topic")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Create Report"):
-            report = ask_ai([
-                {"role": "system", "content": "Write a professional structured report."},
-                {"role": "user", "content": topic}
-            ])
-            st.session_state.report_output = report
-
-    with col2:
-        if st.button("Close Report Tool"):
-            st.session_state.report_mode = False
-            st.rerun()
-
-    if "report_output" in st.session_state:
-        st.markdown("### 📄 Report")
-        st.markdown(st.session_state.report_output)
+</style>
+""", unsafe_allow_html=True)
 
 # =========================
-# TEXT SUMMARIZER
+# SIDEBAR NAVIGATION
 # =========================
-if st.session_state.summary_mode:
+st.sidebar.title("⚙️ Workflow AI")
 
-    st.subheader("📝 Text Summarizer")
+if st.sidebar.button("💬 Chat"):
+    st.session_state.page = "chat"
 
-    text_input = st.text_area("Paste text here")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("Summarize"):
-            summary = ask_ai([
-                {
-                    "role": "system",
-                    "content": "Summarize the text into clear bullet points. Keep only key ideas."
-                },
-                {
-                    "role": "user",
-                    "content": text_input
-                }
-            ])
-            st.session_state.summary_output = summary
-
-    with col2:
-        if st.button("Close Summarizer"):
-            st.session_state.summary_mode = False
-            st.rerun()
-
-    if "summary_output" in st.session_state:
-        st.markdown("### ✨ Summary")
-        st.markdown(st.session_state.summary_output)
-
-# =========================
-# SIDEBAR
-# =========================
-st.sidebar.title("⚙️ Tools")
-
-# Triggers
 if st.sidebar.button("📧 Email Generator"):
-    st.session_state.email_mode = True
-    st.session_state.report_mode = False
-    st.session_state.summary_mode = False
+    st.session_state.page = "email"
 
 if st.sidebar.button("📊 Report Generator"):
-    st.session_state.report_mode = True
-    st.session_state.email_mode = False
-    st.session_state.summary_mode = False
+    st.session_state.page = "report"
 
 if st.sidebar.button("📝 Summarizer"):
-    st.session_state.summary_mode = True
-    st.session_state.email_mode = False
-    st.session_state.report_mode = False
+    st.session_state.page = "summary"
 
 if st.sidebar.button("🧹 Clear Chat"):
     st.session_state.messages = []
     st.rerun()
 
 # =========================
-# HISTORY
+# HEADER
 # =========================
-st.sidebar.subheader("History")
+st.markdown('<div class="saas-header">🚀 Workflow AI SaaS Dashboard</div>', unsafe_allow_html=True)
 
-c.execute("SELECT rowid, query FROM history WHERE username=?",
-          (st.session_state.user,))
-rows = c.fetchall()
+# =========================
+# CHAT PAGE
+# =========================
+if st.session_state.page == "chat":
 
-for i, (rowid, query) in enumerate(rows[-10:]):
-    col1, col2 = st.sidebar.columns([3, 1])
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-    with col1:
-        if st.button(query, key=f"h{i}"):
-            st.session_state.messages.append({"role": "user", "content": query})
-            reply = ask_ai(st.session_state.messages)
-            st.session_state.messages.append({"role": "assistant", "content": reply})
-            st.rerun()
+    user_input = st.chat_input("Ask anything...")
 
-    with col2:
-        if st.button("❌", key=f"d{i}"):
-            c.execute("DELETE FROM history WHERE rowid=?", (rowid,))
-            conn.commit()
-            st.rerun()
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-if st.sidebar.button("Delete All History"):
-    c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
-    conn.commit()
-    st.rerun()
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                reply = ask_ai(st.session_state.messages)
+                st.markdown(reply)
+
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+
+# =========================
+# EMAIL PAGE
+# =========================
+if st.session_state.page == "email":
+
+    st.subheader("📧 Email Generator")
+
+    subject = st.text_input("Subject")
+    body = st.text_area("Message")
+
+    if st.button("Generate Email"):
+        result = ask_ai([
+            {"role": "system", "content": "Write professional email"},
+            {"role": "user", "content": f"{subject}\n{body}"}
+        ])
+        st.markdown("### Output")
+        st.write(result)
+
+# =========================
+# REPORT PAGE
+# =========================
+if st.session_state.page == "report":
+
+    st.subheader("📊 Report Generator")
+
+    topic = st.text_input("Report Topic")
+
+    if st.button("Generate Report"):
+        result = ask_ai([
+            {"role": "system", "content": "Write structured report"},
+            {"role": "user", "content": topic}
+        ])
+        st.markdown("### Report")
+        st.write(result)
+
+# =========================
+# SUMMARY PAGE
+# =========================
+if st.session_state.page == "summary":
+
+    st.subheader("📝 Text Summarizer")
+
+    text = st.text_area("Paste text")
+
+    if st.button("Summarize"):
+        result = ask_ai([
+            {"role": "system", "content": "Summarize in bullet points"},
+            {"role": "user", "content": text}
+        ])
+        st.markdown("### Summary")
+        st.write(result)
