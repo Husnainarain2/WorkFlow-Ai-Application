@@ -1,15 +1,23 @@
-import os
+import os, sqlite3, json, hashlib
 import streamlit as st
 from groq import Groq
 
 # =========================
-# API KEY (FROM STREAMLIT SECRETS)
+# API KEY
 # =========================
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     st.error("❌ Add GROQ_API_KEY in Streamlit Secrets")
     st.stop()
 client = Groq(api_key=api_key)
+
+# =========================
+# DB SETUP
+# =========================
+conn = sqlite3.connect("users.db", check_same_thread=False)
+c = conn.cursor()
+c.execute("CREATE TABLE IF NOT EXISTS history (username TEXT, query TEXT)")
+conn.commit()
 
 # =========================
 # PAGE CONFIG
@@ -46,13 +54,15 @@ apply_theme()
 # =========================
 # UI
 # =========================
-st.title("Workflow AI Chat")
+st.title("🚀 Workflow AI Chat")
 
 # =========================
 # CHAT HISTORY
 # =========================
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "user" not in st.session_state:
+    st.session_state.user = "guest"
 
 # =========================
 # SHOW CHAT
@@ -79,6 +89,10 @@ user_input = st.chat_input("Type your message...")
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
 
+    # Save query to history DB
+    c.execute("INSERT INTO history VALUES (?,?)", (st.session_state.user, user_input))
+    conn.commit()
+
     with st.chat_message("user"):
         st.markdown(user_input)
 
@@ -99,3 +113,9 @@ if st.sidebar.button("🗑 Clear Chat"):
 if st.sidebar.button("🌗 Toggle Theme"):
     toggle_theme()
     st.rerun()
+
+st.sidebar.subheader("🔎 Search History")
+c.execute("SELECT query FROM history WHERE username=?", (st.session_state.user,))
+rows = c.fetchall()
+for r in rows[-10:]:  # show last 10 queries
+    st.sidebar.write("•", r[0])
