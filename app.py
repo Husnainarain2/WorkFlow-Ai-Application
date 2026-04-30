@@ -132,21 +132,37 @@ if st.session_state.messages:
 
 # --- Show History ---
 st.sidebar.subheader("🔎 Search History")
-c.execute("SELECT query FROM history WHERE username=?", (st.session_state.user,))
+c.execute("SELECT rowid, query FROM history WHERE username=?", (st.session_state.user,))
 rows = c.fetchall()
-for i, r in enumerate(rows[-10:]):
-    if st.sidebar.button(r[0], key=f"hist_{i}"):
-        st.session_state.messages.append({"role": "user", "content": r[0]})
-        with st.chat_message("user"):
-            st.markdown(r[0])
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                reply = ask_ai(st.session_state.messages)
-                st.markdown(reply)
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-        st.rerun()
-# --- Delete History ---
+
+for i, (rowid, query) in enumerate(rows[-10:]):  # show last 10
+    cols = st.sidebar.columns([3,1])  # two columns: query + delete button
+    with cols[0]:
+        if st.button(query, key=f"hist_{i}"):
+            # Replay old query
+            st.session_state.messages.append({"role": "user", "content": query})
+            with st.chat_message("user"):
+                st.markdown(query)
+            with st.chat_message("assistant"):
+                with st.spinner("Thinking..."):
+                    reply = ask_ai(st.session_state.messages)
+                    st.markdown(reply)
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            st.rerun()
+    with cols[1]:
+        if st.button("❌", key=f"del_{i}"):
+            # Delete this single history item
+            c.execute("DELETE FROM history WHERE rowid=?", (rowid,))
+            conn.commit()
+            st.sidebar.success(f"Deleted: {query}")
+            st.rerun()
+
+# --- Delete All History ---
 if st.sidebar.button("❌ Delete All History"):
     c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
+    conn.commit()
+    st.sidebar.success("All history deleted!")
+    st.rerun()
+sion_state.user,))
     conn.commit()
     st.sidebar.success("History deleted!")
