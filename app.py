@@ -108,17 +108,30 @@ def ask_ai(messages):
     )
     return response.choices[0].message.content
 
-def create_report_pdf(title, content):
+import tempfile
+
+def create_report_pdf(title, content, charts=None):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(200, 10, txt=title, ln=True, align="C")
     pdf.ln(10)
+
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, content)
     pdf.ln(10)
+
+    # Insert charts if provided
+    if charts:
+        for chart in charts:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+                chart.write_image(tmpfile.name, format="png")
+                pdf.image(tmpfile.name, w=160)
+                pdf.ln(10)
+
     pdf.set_font("Arial", 'I', 10)
     pdf.cell(0, 10, f"Generated on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", 0, 0, "C")
+
     return pdf.output(dest="S").encode("latin1")
 
 # =========================
@@ -210,6 +223,7 @@ with st.sidebar.expander("☰ Tools", expanded=False):
         st.markdown(summary)
 
     # Reports
+        # Reports
     st.markdown("#### Reports")
     if st.button("Generate Report"):
         st.session_state.report_mode = True
@@ -223,8 +237,34 @@ with st.sidebar.expander("☰ Tools", expanded=False):
             ])
             st.write("Generated Report:")
             st.markdown(report_text)
+
+            # Generate charts dynamically from session data
+            email_count = sum(1 for m in st.session_state.messages if "Subject:" in m["content"])
+            summary_count = sum(1 for m in st.session_state.messages if "Summary" in m["content"])
+            report_count = sum(1 for m in st.session_state.messages if "Report" in m["content"])
+            scheduling_count = sum(1 for m in st.session_state.messages if "Schedule" in m["content"])
+
+            tasks = {"Emails": email_count, "Summaries": summary_count,
+                     "Reports": report_count, "Scheduling": scheduling_count}
+            fig1 = px.pie(names=list(tasks.keys()), values=list(tasks.values()), hole=0.4, title="Tasks Breakdown")
+
+            time_saved = round((email_count+summary_count+report_count+scheduling_count) * 0.25, 2)
+            fig2 = go.Figure(go.Indicator(mode="gauge+number", value=time_saved,
+                                          title={'text': "Time Saved (hrs)"},
+                                          gauge={'axis': {'range': [0, 40]}, 'bar': {'color': "green"}}))
+
+            workflows = {"Drafting Reports": report_count*10,
+                         "Summarizing Meetings": summary_count*5,
+                         "Email Automation": email_count*8}
+            fig3 = go.Figure()
+            for task, progress in workflows.items():
+                fig3.add_trace(go.Bar(x=[min(progress,100)], y=[task],
+                                      orientation='h', text=f"{min(progress,100)}%", textposition="outside"))
+            fig3.update_layout(title="Active Workflows Progress", xaxis=dict(range=[0,100]))
+
+            # Download buttons
             st.download_button("Download Report (TXT)", data=report_text, file_name="report.txt", mime="text/plain")
-            pdf_bytes = create_report_pdf(report_topic, report_text)
+            pdf_bytes = create_report_pdf(report_topic, report_text, charts=[fig1, fig2, fig3])
             st.download_button("Download Report (PDF)", data=pdf_bytes, file_name="report.pdf", mime="application/pdf")
 
     # Downloads
@@ -239,18 +279,62 @@ with st.sidebar.expander("☰ Tools", expanded=False):
             file_name="chat_history.txt",
             mime="text/plain")
 
-    # Data Visualization
+       # Data Visualization
     st.markdown("#### Data Visualization")
-    if st.button("Show Sample Chart"):
-        st.session_state.show_chart = True
-    if "show_chart" in st.session_state and st.session_state.show_chart:
-        st.subheader("Interactive Chart Example")
-        user_msgs = sum(1 for m in st.session_state.messages if m["role"] == "user")
-        ai_msgs = sum(1 for m in st.session_state.messages if m["role"] == "assistant")
-        fig = px.bar(
-            x=["User Messages", "AI Messages"],
-            y=[user_msgs, ai_msgs],
-            labels={"x": "Role", "y": "Count"},
-            title="Message Distribution"
+    if st.button("Show Dashboard Charts"):
+        st.session_state.show_dashboard = True
+
+    if "show_dashboard" in st.session_state and st.session_state.show_dashboard:
+        st.subheader("Workflow Insights Dashboard")
+
+        # --- Collect live stats from session ---
+        email_count = sum(1 for m in st.session_state.messages if "Subject:" in m["content"])
+        summary_count = sum(1 for m in st.session_state.messages if "Summary" in m["content"])
+        report_count = sum(1 for m in st.session_state.messages if "Report" in m["content"])
+        scheduling_count = sum(1 for m in st.session_state.messages if "Schedule" in m["content"])
+
+        total_tasks = email_count + summary_count + report_count + scheduling_count
+        time_saved = round(total_tasks * 0.25, 2)  # 15 mins per task
+
+        # --- Donut chart for tasks automated ---
+        tasks = {
+            "Emails": email_count,
+            "Summaries": summary_count,
+            "Reports": report_count,
+            "Scheduling": scheduling_count
+        }
+        fig1 = px.pie(
+            names=list(tasks.keys()),
+            values=list(tasks.values()),
+            hole=0.4,
+            title="Tasks Automated Breakdown"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig1, use_container_width=True)
+
+        # --- Gauge chart for time saved ---
+        fig2 = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=time_saved,
+            title={'text': "Time Saved (hrs)"},
+            gauge={'axis': {'range': [0, 40]}, 'bar': {'color': "green"}}
+        ))
+        st.plotly_chart(fig2, use_container_width=True)
+
+        # --- Progress bars for active workflows ---
+        workflows = {
+            "Drafting Reports": report_count * 10,
+            "Summarizing Meetings": summary_count * 5,
+            "Email Automation": email_count * 8
+        }
+        fig3 = go.Figure()
+        for task, progress in workflows.items():
+            fig3.add_trace(go.Bar(
+                x=[min(progress, 100)],
+                y=[task],
+                orientation='h',
+                text=f"{min(progress,100)}%",
+                textposition="outside"
+            ))
+        fig3.update_layout(title="Active Workflows Progress", xaxis=dict(range=[0,100]))
+        st.plotly_chart(fig3, use_container_width=True)
+
