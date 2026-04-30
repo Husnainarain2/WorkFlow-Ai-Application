@@ -6,7 +6,7 @@ from groq import Groq
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="Workflow AI SaaS", layout="wide")
+st.set_page_config(page_title="AI Assistant", layout="wide")
 
 # =========================
 # API KEY
@@ -19,194 +19,172 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # =========================
-# DB
+# DB (HISTORY + MEMORY)
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
-c.execute("CREATE TABLE IF NOT EXISTS history (username TEXT, query TEXT)")
+
+c.execute("""
+CREATE TABLE IF NOT EXISTS chat_history (
+    user TEXT,
+    role TEXT,
+    message TEXT
+)
+""")
+
+c.execute("""
+CREATE TABLE IF NOT EXISTS user_memory (
+    user TEXT PRIMARY KEY,
+    memory TEXT
+)
+""")
+
 conn.commit()
 
 # =========================
 # SESSION STATE
 # =========================
+if "user" not in st.session_state:
+    st.session_state.user = "guest"
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "page" not in st.session_state:
-    st.session_state.page = "chat"
+if "theme" not in st.session_state:
+    st.session_state.theme = "light"
 
 # =========================
-# AI FUNCTION
+# THEME TOGGLE
 # =========================
-def ask_ai(messages):
+def apply_theme():
+    if st.session_state.theme == "dark":
+        st.markdown("""
+        <style>
+        .stApp { background:#0f172a; color:white; }
+        .stChatMessage { background:#1e293b; }
+        </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <style>
+        .stApp { background:#f6f7fb; color:black; }
+        .stChatMessage { background:white; }
+        </style>
+        """, unsafe_allow_html=True)
+
+apply_theme()
+
+# =========================
+# MEMORY FUNCTIONS
+# =========================
+def get_memory(user):
+    c.execute("SELECT memory FROM user_memory WHERE user=?", (user,))
+    row = c.fetchone()
+    return row[0] if row else ""
+
+def update_memory(user, text):
+    c.execute("""
+        INSERT INTO user_memory(user, memory)
+        VALUES(?, ?)
+        ON CONFLICT(user) DO UPDATE SET memory=excluded.memory
+    """, (user, text))
+    conn.commit()
+
+# =========================
+# AI FUNCTION (WITH MEMORY)
+# =========================
+def ask_ai(messages, memory=""):
+    system_prompt = f"""
+You are a helpful AI assistant.
+
+User memory:
+{memory}
+"""
+
+    full_messages = [{"role": "system", "content": system_prompt}] + messages
+
     res = client.chat.completions.create(
         model="llama-3.1-8b-instant",
-        messages=messages
+        messages=full_messages
     )
     return res.choices[0].message.content
 
 # =========================
-# PREMIUM CSS (SAAS STYLE)
+# SIDEBAR (CHATGPT STYLE)
 # =========================
-st.markdown("""
-<style>
+with st.sidebar:
+    st.title("⚙️ Controls")
 
-.stApp {
-    background: #f6f7fb;
-    font-family: Inter, sans-serif;
-}
+    if st.button("💬 Chat"):
+        st.session_state.page = "chat"
 
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: white;
-    border-right: 1px solid #eee;
-}
+    if st.button("🧹 Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
 
-/* Buttons */
-.stButton>button {
-    width: 100%;
-    border-radius: 10px;
-    padding: 10px;
-    background: #4f46e5;
-    color: white;
-    border: none;
-}
+    # THEME TOGGLE
+    if st.button("🌓 Toggle Theme"):
+        st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+        st.rerun()
 
-.stButton>button:hover {
-    background: #3730a3;
-}
-
-/* Chat bubbles */
-[data-testid="stChatMessage-user"] {
-    background: #4f46e5;
-    color: white;
-    border-radius: 12px;
-    padding: 10px;
-}
-
-[data-testid="stChatMessage-assistant"] {
-    background: #ffffff;
-    border: 1px solid #eee;
-    border-radius: 12px;
-    padding: 10px;
-}
-
-/* Header */
-.saas-header {
-    font-size: 28px;
-    font-weight: 700;
-    margin-bottom: 10px;
-}
-
-/* Cards */
-.card {
-    background: white;
-    padding: 20px;
-    border-radius: 14px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-# =========================
-# SIDEBAR NAVIGATION
-# =========================
-st.sidebar.title("⚙️ Workflow AI")
-
-if st.sidebar.button("💬 Chat"):
+# default page
+if "page" not in st.session_state:
     st.session_state.page = "chat"
-
-if st.sidebar.button("📧 Email Generator"):
-    st.session_state.page = "email"
-
-if st.sidebar.button("📊 Report Generator"):
-    st.session_state.page = "report"
-
-if st.sidebar.button("📝 Summarizer"):
-    st.session_state.page = "summary"
-
-if st.sidebar.button("🧹 Clear Chat"):
-    st.session_state.messages = []
-    st.rerun()
 
 # =========================
 # HEADER
 # =========================
-st.markdown('<div class="saas-header">🚀 Workflow AI SaaS Dashboard</div>', unsafe_allow_html=True)
+st.title("🤖 ChatGPT Style AI Assistant")
+
+# =========================
+# LOAD MEMORY
+# =========================
+memory = get_memory(st.session_state.user)
 
 # =========================
 # CHAT PAGE
 # =========================
 if st.session_state.page == "chat":
 
+    # show chat
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    user_input = st.chat_input("Ask anything...")
+    user_input = st.chat_input("Message AI...")
 
     if user_input:
+
         st.session_state.messages.append({"role": "user", "content": user_input})
+
+        # save history
+        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+                  (st.session_state.user, "user", user_input))
+        conn.commit()
 
         with st.chat_message("user"):
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                reply = ask_ai(st.session_state.messages)
+                reply = ask_ai(st.session_state.messages, memory)
                 st.markdown(reply)
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
 
-# =========================
-# EMAIL PAGE
-# =========================
-if st.session_state.page == "email":
+        # =========================
+        # UPDATE MEMORY (SMART SUMMARY)
+        # =========================
+        if len(st.session_state.messages) % 6 == 0:
+            mem = ask_ai([
+                {"role": "system", "content": "Summarize user preferences in 1-2 lines."},
+                {"role": "user", "content": str(st.session_state.messages[-6:])}
+            ])
 
-    st.subheader("📧 Email Generator")
-
-    subject = st.text_input("Subject")
-    body = st.text_area("Message")
-
-    if st.button("Generate Email"):
-        result = ask_ai([
-            {"role": "system", "content": "Write professional email"},
-            {"role": "user", "content": f"{subject}\n{body}"}
-        ])
-        st.markdown("### Output")
-        st.write(result)
+            update_memory(st.session_state.user, mem)
 
 # =========================
-# REPORT PAGE
+# MEMORY DISPLAY (OPTIONAL DEBUG)
 # =========================
-if st.session_state.page == "report":
-
-    st.subheader("📊 Report Generator")
-
-    topic = st.text_input("Report Topic")
-
-    if st.button("Generate Report"):
-        result = ask_ai([
-            {"role": "system", "content": "Write structured report"},
-            {"role": "user", "content": topic}
-        ])
-        st.markdown("### Report")
-        st.write(result)
-
-# =========================
-# SUMMARY PAGE
-# =========================
-if st.session_state.page == "summary":
-
-    st.subheader("📝 Text Summarizer")
-
-    text = st.text_area("Paste text")
-
-    if st.button("Summarize"):
-        result = ask_ai([
-            {"role": "system", "content": "Summarize in bullet points"},
-            {"role": "user", "content": text}
-        ])
-        st.markdown("### Summary")
-        st.write(result)
+with st.expander("🧠 AI Memory (User Profile)"):
+    st.write(memory if memory else "No memory yet.")
