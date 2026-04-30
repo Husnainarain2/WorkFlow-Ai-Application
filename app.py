@@ -10,6 +10,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # =========================
+# PAGE CONFIG
+# =========================
+st.set_page_config(page_title="Workflow AI", layout="centered")
+
+# =========================
 # API KEY
 # =========================
 api_key = os.getenv("GROQ_API_KEY")
@@ -28,71 +33,24 @@ c.execute("CREATE TABLE IF NOT EXISTS history (username TEXT, query TEXT)")
 conn.commit()
 
 # =========================
-# PAGE CONFIG
-# =========================
-st.set_page_config(page_title="Workflow AI", layout="centered")
-
-# =========================
-# CSS
-# =========================
-st.markdown("""
-<style>
-.sidebar-toggle {
-    font-size: 24px;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 6px;
-    background-color: #2563eb;
-    color: white;
-    text-align: center;
-    margin-bottom: 10px;
-}
-.sidebar-toggle:hover {
-    background-color: #1e40af;
-}
-</style>
-""", unsafe_allow_html=True)
-
-# =========================
-# THEME
-# =========================
-if "theme" not in st.session_state:
-    st.session_state.theme = "light"
-
-def toggle_theme():
-    st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
-
-def apply_theme():
-    if st.session_state.theme == "dark":
-        st.markdown("""
-        <style>
-        .stApp { background: #0f172a; color: white; }
-        .stChatMessage { background-color: #1e293b; color: white; }
-        </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <style>
-        .stApp { background: #f9fafb; color: black; }
-        .stChatMessage { background-color: #e5e7eb; color: black; }
-        </style>
-        """, unsafe_allow_html=True)
-
-apply_theme()
-
-# =========================
-# UI
-# =========================
-st.title("Workflow AI Chat")
-
-# =========================
-# SESSION
+# SESSION STATE
 # =========================
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 if "user" not in st.session_state:
     st.session_state.user = "guest"
+
+# modes
+if "email_mode" not in st.session_state:
+    st.session_state.email_mode = False
+if "report_mode" not in st.session_state:
+    st.session_state.report_mode = False
+
+# =========================
+# UI
+# =========================
+st.title("🚀 Workflow AI Chat")
 
 # =========================
 # SHOW CHAT
@@ -112,44 +70,26 @@ def ask_ai(messages):
     return response.choices[0].message.content
 
 # =========================
-# PDF REPORT FUNCTION (KEEP FOR REPORT DOWNLOAD)
+# PDF REPORT FUNCTION
 # =========================
-def create_report_pdf(title, content, charts=None):
+def create_report_pdf(title, content):
     pdf = FPDF()
     pdf.add_page()
 
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(200, 10, title, ln=True, align="C")
+    pdf.cell(200, 10, title, ln=True)
     pdf.ln(10)
 
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, content)
-    pdf.ln(10)
-
-    if charts:
-        for chart in charts:
-            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
-                chart.write_image(tmpfile.name)
-                pdf.image(tmpfile.name, w=160)
-                pdf.ln(10)
-
-    pdf.set_font("Arial", "I", 10)
-    pdf.cell(
-        0, 10,
-        f"Generated on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}",
-        0, 0, "C"
-    )
 
     return pdf.output(dest="S").encode("latin1")
 
 # =========================
-# INPUT (ONLY CHAT NOW)
+# CHAT INPUT
 # =========================
 user_input = st.chat_input("Type your message...")
 
-# =========================
-# CHAT LOGIC
-# =========================
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
 
@@ -168,9 +108,92 @@ if user_input:
     st.session_state.messages.append({"role": "assistant", "content": reply})
 
 # =========================
+# EMAIL GENERATOR (MAIN SCREEN)
+# =========================
+if st.session_state.email_mode:
+
+    st.subheader("📧 Email Generator")
+
+    subject = st.text_input("Subject")
+    body = st.text_area("Email Content")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Generate Email"):
+            reply = ask_ai([
+                {"role": "system", "content": "Write a professional email"},
+                {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
+            ])
+            st.session_state.generated_email = reply
+
+    with col2:
+        if st.button("Close Email Tool"):
+            st.session_state.email_mode = False
+            st.rerun()
+
+    if "generated_email" in st.session_state:
+        st.markdown("### ✉️ Generated Email")
+        st.markdown(st.session_state.generated_email)
+
+# =========================
+# REPORT GENERATOR (MAIN SCREEN)
+# =========================
+if st.session_state.report_mode:
+
+    st.subheader("📊 Report Generator")
+
+    topic = st.text_input("Report Topic")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Create Report"):
+            report = ask_ai([
+                {"role": "system", "content": "Write a professional report"},
+                {"role": "user", "content": topic}
+            ])
+            st.session_state.report_output = report
+
+    with col2:
+        if st.button("Close Report Tool"):
+            st.session_state.report_mode = False
+            st.rerun()
+
+    if "report_output" in st.session_state:
+        st.markdown(st.session_state.report_output)
+
+        st.download_button("Download TXT",
+                           st.session_state.report_output,
+                           "report.txt")
+
+        pdf_bytes = create_report_pdf(topic, st.session_state.report_output)
+        st.download_button("Download PDF",
+                           pdf_bytes,
+                           "report.pdf")
+
+# =========================
 # SIDEBAR
 # =========================
-st.sidebar.markdown("### Search History")
+st.sidebar.title("⚙️ Tools")
+
+# --- Triggers ---
+if st.sidebar.button("📧 Email Generator"):
+    st.session_state.email_mode = True
+    st.session_state.report_mode = False
+
+if st.sidebar.button("📊 Report Generator"):
+    st.session_state.report_mode = True
+    st.session_state.email_mode = False
+
+if st.sidebar.button("🧹 Clear Chat"):
+    st.session_state.messages = []
+    st.rerun()
+
+# =========================
+# HISTORY
+# =========================
+st.sidebar.subheader("History")
 
 c.execute("SELECT rowid, query FROM history WHERE username=?",
           (st.session_state.user,))
@@ -180,55 +203,35 @@ for i, (rowid, query) in enumerate(rows[-10:]):
     col1, col2 = st.sidebar.columns([3, 1])
 
     with col1:
-        if st.button(query, key=f"hist_{i}"):
-            st.session_state.messages.append(
-                {"role": "user", "content": query})
+        if st.button(query, key=f"h{i}"):
+            st.session_state.messages.append({"role": "user", "content": query})
             reply = ask_ai(st.session_state.messages)
-            st.session_state.messages.append(
-                {"role": "assistant", "content": reply})
+            st.session_state.messages.append({"role": "assistant", "content": reply})
             st.rerun()
 
     with col2:
-        if st.button("✖", key=f"del_{i}"):
+        if st.button("❌", key=f"d{i}"):
             c.execute("DELETE FROM history WHERE rowid=?", (rowid,))
             conn.commit()
             st.rerun()
 
 if st.sidebar.button("Delete All History"):
-    c.execute("DELETE FROM history WHERE username=?",
-              (st.session_state.user,))
+    c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
     conn.commit()
     st.rerun()
 
 # =========================
-# TOOLS
+# DASHBOARD
 # =========================
-with st.sidebar.expander("☰ Tools"):
+st.subheader("📊 Dashboard")
 
-    if st.button("Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
+email_count = sum(1 for m in st.session_state.messages if "email" in m["content"].lower())
+report_count = sum(1 for m in st.session_state.messages if "report" in m["content"].lower())
+summary_count = sum(1 for m in st.session_state.messages if "summary" in m["content"].lower())
 
-    if st.button("Toggle Theme"):
-        toggle_theme()
-        st.rerun()
-
-    # Email
-    st.markdown("### Email")
-    subject = st.text_input("Subject")
-    body = st.text_area("Body")
-
-    if st.button("Generate Email"):
-        reply = ask_ai([
-            {"role": "system", "content": "Write professional email"},
-            {"role": "user", "content": f"{subject}\n{body}"}
-        ])
-        st.markdown(reply)
-
-    # Summarize
-    if st.button("Summarize Chat"):
-        summary = ask_ai([
-            {"role": "system", "content": "Summarize chat"},
-            {"role": "user", "content": str(st.session_state.messages)}
-        ])
-        st.markdown(summary)
+fig = px.pie(
+    names=["Emails", "Reports", "Summaries"],
+    values=[email_count, report_count, summary_count],
+    hole=0.4
+)
+st.plotly_chart(fig, use_container_width=True)
