@@ -2,6 +2,8 @@ import os
 import streamlit as st
 import sqlite3
 import json
+import hashlib
+import base64
 from groq import Groq
 
 # =========================
@@ -9,62 +11,47 @@ from groq import Groq
 # =========================
 st.set_page_config(
     page_title="Workflow AI",
-    page_icon="",
+    page_icon="🚀",
     layout="wide"
 )
 
 # =========================
-# CUSTOM UI (MODERN DARK UI)
+# THEME TOGGLE
 # =========================
-st.markdown("""
-<style>
+if "theme" not in st.session_state:
+    st.session_state.theme = "dark"
 
-/* Background */
-.stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: white;
-}
+def toggle_theme():
+    st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
 
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background-color: #0b1220;
-}
+def apply_theme():
+    if st.session_state.theme == "dark":
+        st.markdown("""
+        <style>
+        .stApp { background: linear-gradient(135deg, #0f172a, #1e293b); color: white; }
+        section[data-testid="stSidebar"] { background-color: #0b1220; }
+        .user-bubble { background: #2563eb; padding: 12px; border-radius: 12px; margin: 8px 0; max-width: 70%; margin-left: auto; color: white; font-size: 15px; }
+        .ai-bubble { background: #1e293b; padding: 12px; border-radius: 12px; margin: 8px 0; max-width: 70%; color: white; font-size: 15px; }
+        h1 { color: #60a5fa; }
+        </style>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <style>
+        .stApp { background: #f9fafb; color: black; }
+        section[data-testid="stSidebar"] { background-color: #e5e7eb; }
+        .user-bubble { background: #3b82f6; padding: 12px; border-radius: 12px; margin: 8px 0; max-width: 70%; margin-left: auto; color: white; font-size: 15px; }
+        .ai-bubble { background: #d1d5db; padding: 12px; border-radius: 12px; margin: 8px 0; max-width: 70%; color: black; font-size: 15px; }
+        h1 { color: #1e40af; }
+        </style>
+        """, unsafe_allow_html=True)
 
-/* Chat bubbles */
-.user-bubble {
-    background: #2563eb;
-    padding: 12px;
-    border-radius: 12px;
-    margin: 8px 0;
-    max-width: 70%;
-    margin-left: auto;
-    color: white;
-    font-size: 15px;
-}
-
-.ai-bubble {
-    background: #1e293b;
-    padding: 12px;
-    border-radius: 12px;
-    margin: 8px 0;
-    max-width: 70%;
-    color: white;
-    font-size: 15px;
-}
-
-/* Title */
-h1 {
-    color: #60a5fa;
-}
-
-</style>
-""", unsafe_allow_html=True)
+apply_theme()
 
 # =========================
-# API KEY (STREAMLIT SECRETS)
+# API KEY
 # =========================
 api_key = os.getenv("GROQ_API_KEY")
-
 if not api_key:
     st.error("❌ Add GROQ_API_KEY in Streamlit Secrets")
     st.stop()
@@ -72,89 +59,76 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # =========================
-# DATABASE (SQLite)
+# DATABASE
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
 
-c.execute("""
-CREATE TABLE IF NOT EXISTS users (
+c.execute("""CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY,
     password TEXT
-)
-""")
+)""")
 
-c.execute("""
-CREATE TABLE IF NOT EXISTS chats (
+c.execute("""CREATE TABLE IF NOT EXISTS chats (
     username TEXT,
+    project TEXT,
     messages TEXT
-)
-""")
+)""")
+
+c.execute("""CREATE TABLE IF NOT EXISTS history (
+    username TEXT,
+    query TEXT
+)""")
 
 conn.commit()
 
 # =========================
-# SESSION STATE
-# =========================
-if "user" not in st.session_state:
-    st.session_state.user = None
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# =========================
 # AUTH SYSTEM
 # =========================
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
 def auth():
     st.title("Workflow AI Login")
-
     tab1, tab2 = st.tabs(["🔐 Login", "🆕 Signup"])
 
-    # LOGIN
     with tab1:
         u = st.text_input("Username", key="login_u")
         p = st.text_input("Password", type="password", key="login_p")
-
         if st.button("Login"):
-            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, hash_password(p)))
             if c.fetchone():
                 st.session_state.user = u
-
-                # load chat
-                c.execute("SELECT messages FROM chats WHERE username=?", (u,))
-                data = c.fetchone()
-
-                if data:
-                    st.session_state.messages = json.loads(data[0])
-                else:
-                    st.session_state.messages = []
-
+                st.session_state.project = "default"
+                load_chat()
                 st.rerun()
             else:
                 st.error("❌ Invalid login")
 
-    # SIGNUP
     with tab2:
         nu = st.text_input("New Username")
         np = st.text_input("New Password", type="password")
-
         if st.button("Create Account"):
             try:
-                c.execute("INSERT INTO users VALUES (?,?)", (nu, np))
+                c.execute("INSERT INTO users VALUES (?,?)", (nu, hash_password(np)))
                 conn.commit()
                 st.success("Account created ✔")
             except:
                 st.error("User already exists")
 
-# =========================
-# RUN AUTH
-# =========================
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "project" not in st.session_state:
+    st.session_state.project = "default"
+
 if not st.session_state.user:
     auth()
     st.stop()
 
 # =========================
-# AI FUNCTION
+# CHAT FUNCTIONS
 # =========================
 def ask_ai(messages):
     response = client.chat.completions.create(
@@ -163,28 +137,36 @@ def ask_ai(messages):
     )
     return response.choices[0].message.content
 
-# =========================
-# SAVE CHAT
-# =========================
 def save_chat():
-    c.execute("DELETE FROM chats WHERE username=?", (st.session_state.user,))
-    c.execute(
-        "INSERT INTO chats VALUES (?,?)",
-        (st.session_state.user, json.dumps(st.session_state.messages))
-    )
+    c.execute("DELETE FROM chats WHERE username=? AND project=?", (st.session_state.user, st.session_state.project))
+    c.execute("INSERT INTO chats VALUES (?,?,?)",
+              (st.session_state.user, st.session_state.project, json.dumps(st.session_state.messages)))
     conn.commit()
+
+def load_chat():
+    c.execute("SELECT messages FROM chats WHERE username=? AND project=?", (st.session_state.user, st.session_state.project))
+    data = c.fetchone()
+    st.session_state.messages = json.loads(data[0]) if data else []
 
 # =========================
 # SIDEBAR
 # =========================
 with st.sidebar:
     st.header(f"👤 {st.session_state.user}")
-
+    st.button("🌗 Toggle Theme", on_click=toggle_theme)
+    new_proj = st.text_input("New Project Name")
+    if st.button("➕ New Project") and new_proj:
+        st.session_state.project = new_proj
+        st.session_state.messages = []
+        save_chat()
+        st.rerun()
     if st.button("🗑 Clear Chat"):
         st.session_state.messages = []
         save_chat()
         st.rerun()
-
+    if st.button("⬇ Download Chat"):
+        st.download_button("Download JSON", json.dumps(st.session_state.messages), file_name="chat.json")
+        st.download_button("Download TXT", "\n".join([m["content"] for m in st.session_state.messages]), file_name="chat.txt")
     if st.button("🚪 Logout"):
         st.session_state.user = None
         st.session_state.messages = []
@@ -193,7 +175,7 @@ with st.sidebar:
 # =========================
 # TITLE
 # =========================
-st.title("🚀 Workflow AI SaaS Chat")
+st.title(f"🚀 Workflow AI - {st.session_state.project}")
 
 # =========================
 # SHOW CHAT
@@ -201,21 +183,41 @@ st.title("🚀 Workflow AI SaaS Chat")
 for msg in st.session_state.messages:
     if msg["role"] == "user":
         st.markdown(f"<div class='user-bubble'>🧑 {msg['content']}</div>", unsafe_allow_html=True)
+        if "image" in msg:
+            st.image(base64.b64decode(msg["image"]), caption="Uploaded Image", use_column_width=True)
     else:
         st.markdown(f"<div class='ai-bubble'>🤖 {msg['content']}</div>", unsafe_allow_html=True)
 
 # =========================
-# INPUT
+# INPUT + IMAGE UPLOAD
 # =========================
-user_input = st.chat_input("Type your message...")
+col1, col2 = st.columns([3,1])
+with col1:
+    user_input = st.chat_input("Type your message...")
+with col2:
+    uploaded_file = st.file_uploader("📷 Upload Image", type=["png","jpg","jpeg"])
+
+if uploaded_file:
+    img_bytes = uploaded_file.read()
+    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+    st.session_state.messages.append({
+        "role": "user",
+        "content": f"[Image Uploaded: {uploaded_file.name}]",
+        "image": img_b64
+    })
+    c.execute("INSERT INTO history VALUES (?,?)", (st.session_state.user, f"Image: {uploaded_file.name}"))
+    conn.commit()
+    save_chat()
+    st.rerun()
 
 if user_input:
     st.session_state.messages.append({"role": "user", "content": user_input})
+    c.execute("INSERT INTO history VALUES (?,?)", (st.session_state.user, user_input))
+    conn.commit()
 
     with st.spinner("Thinking..."):
         reply = ask_ai(st.session_state.messages)
 
     st.session_state.messages.append({"role": "assistant", "content": reply})
-
     save_chat()
     st.rerun()
