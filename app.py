@@ -6,8 +6,6 @@ import tempfile
 import streamlit as st
 from groq import Groq
 from fpdf import FPDF
-import plotly.express as px
-import plotly.graph_objects as go
 
 # =========================
 # PAGE CONFIG
@@ -41,9 +39,9 @@ if "messages" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = "guest"
 
-# modes
 if "email_mode" not in st.session_state:
     st.session_state.email_mode = False
+
 if "report_mode" not in st.session_state:
     st.session_state.report_mode = False
 
@@ -53,7 +51,7 @@ if "report_mode" not in st.session_state:
 st.title("🚀 Workflow AI Chat")
 
 # =========================
-# SHOW CHAT
+# CHAT DISPLAY
 # =========================
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
@@ -70,19 +68,16 @@ def ask_ai(messages):
     return response.choices[0].message.content
 
 # =========================
-# PDF REPORT FUNCTION
+# PDF FUNCTION
 # =========================
 def create_report_pdf(title, content):
     pdf = FPDF()
     pdf.add_page()
-
     pdf.set_font("Arial", "B", 16)
     pdf.cell(200, 10, title, ln=True)
     pdf.ln(10)
-
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, content)
-
     return pdf.output(dest="S").encode("latin1")
 
 # =========================
@@ -177,7 +172,6 @@ if st.session_state.report_mode:
 # =========================
 st.sidebar.title("⚙️ Tools")
 
-# --- Triggers ---
 if st.sidebar.button("📧 Email Generator"):
     st.session_state.email_mode = True
     st.session_state.report_mode = False
@@ -219,19 +213,3 @@ if st.sidebar.button("Delete All History"):
     c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
     conn.commit()
     st.rerun()
-
-# =========================
-# DASHBOARD
-# =========================
-st.subheader("📊 Dashboard")
-
-email_count = sum(1 for m in st.session_state.messages if "email" in m["content"].lower())
-report_count = sum(1 for m in st.session_state.messages if "report" in m["content"].lower())
-summary_count = sum(1 for m in st.session_state.messages if "summary" in m["content"].lower())
-
-fig = px.pie(
-    names=["Emails", "Reports", "Summaries"],
-    values=[email_count, report_count, summary_count],
-    hole=0.4
-)
-st.plotly_chart(fig, use_container_width=True)
