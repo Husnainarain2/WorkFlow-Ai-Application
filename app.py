@@ -117,5 +117,19 @@ if st.sidebar.button("🌗 Toggle Theme"):
 st.sidebar.subheader("🔎 Search History")
 c.execute("SELECT query FROM history WHERE username=?", (st.session_state.user,))
 rows = c.fetchall()
-for r in rows[-10:]:  # show last 10 queries
-    st.sidebar.write("•", r[0])
+
+# Show last 10 queries as clickable buttons
+for i, r in enumerate(rows[-10:]):
+    if st.sidebar.button(r[0], key=f"hist_{i}"):
+        # Add the old query back into chat
+        st.session_state.messages.append({"role": "user", "content": r[0]})
+        with st.chat_message("user"):
+            st.markdown(r[0])
+
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                reply = ask_ai(st.session_state.messages)
+                st.markdown(reply)
+
+        st.session_state.messages.append({"role": "assistant", "content": reply})
+        st.rerun()
