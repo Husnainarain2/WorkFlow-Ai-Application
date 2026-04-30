@@ -163,6 +163,4 @@ if st.sidebar.button("❌ Delete All History"):
     conn.commit()
     st.sidebar.success("All history deleted!")
     st.rerun()
-sion_state.user,))
-    conn.commit()
-    st.sidebar.success("History deleted!")
+
