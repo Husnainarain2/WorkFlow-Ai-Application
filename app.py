@@ -1,12 +1,16 @@
 import os
 import sqlite3
+import json
+import datetime
+import tempfile
 import streamlit as st
 from groq import Groq
+from fpdf import FPDF
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="AI Assistant", layout="wide")
+st.set_page_config(page_title="Workflow AI", layout="centered")
 
 # =========================
 # API KEY
@@ -19,172 +23,217 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # =========================
-# DB (HISTORY + MEMORY)
+# DB SETUP
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
-
-c.execute("""
-CREATE TABLE IF NOT EXISTS chat_history (
-    user TEXT,
-    role TEXT,
-    message TEXT
-)
-""")
-
-c.execute("""
-CREATE TABLE IF NOT EXISTS user_memory (
-    user TEXT PRIMARY KEY,
-    memory TEXT
-)
-""")
-
+c.execute("CREATE TABLE IF NOT EXISTS history (username TEXT, query TEXT)")
 conn.commit()
 
 # =========================
 # SESSION STATE
 # =========================
-if "user" not in st.session_state:
-    st.session_state.user = "guest"
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "theme" not in st.session_state:
-    st.session_state.theme = "light"
+if "user" not in st.session_state:
+    st.session_state.user = "guest"
+
+if "email_mode" not in st.session_state:
+    st.session_state.email_mode = False
+
+if "report_mode" not in st.session_state:
+    st.session_state.report_mode = False
+
+if "summary_mode" not in st.session_state:
+    st.session_state.summary_mode = False
 
 # =========================
-# THEME TOGGLE
+# UI TITLE
 # =========================
-def apply_theme():
-    if st.session_state.theme == "dark":
-        st.markdown("""
-        <style>
-        .stApp { background:#0f172a; color:white; }
-        .stChatMessage { background:#1e293b; }
-        </style>
-        """, unsafe_allow_html=True)
-    else:
-        st.markdown("""
-        <style>
-        .stApp { background:#f6f7fb; color:black; }
-        .stChatMessage { background:white; }
-        </style>
-        """, unsafe_allow_html=True)
-
-apply_theme()
+st.title("🚀 Workflow AI Chat")
 
 # =========================
-# MEMORY FUNCTIONS
+# SHOW CHAT
 # =========================
-def get_memory(user):
-    c.execute("SELECT memory FROM user_memory WHERE user=?", (user,))
-    row = c.fetchone()
-    return row[0] if row else ""
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-def update_memory(user, text):
-    c.execute("""
-        INSERT INTO user_memory(user, memory)
-        VALUES(?, ?)
-        ON CONFLICT(user) DO UPDATE SET memory=excluded.memory
-    """, (user, text))
+# =========================
+# AI FUNCTION
+# =========================
+def ask_ai(messages):
+    response = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=messages
+    )
+    return response.choices[0].message.content
+
+# =========================
+# CHAT INPUT
+# =========================
+user_input = st.chat_input("Type your message...")
+
+if user_input:
+    st.session_state.messages.append({"role": "user", "content": user_input})
+
+    c.execute("INSERT INTO history VALUES (?,?)",
+              (st.session_state.user, user_input))
     conn.commit()
 
-# =========================
-# AI FUNCTION (WITH MEMORY)
-# =========================
-def ask_ai(messages, memory=""):
-    system_prompt = f"""
-You are a helpful AI assistant.
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
-User memory:
-{memory}
-"""
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            reply = ask_ai(st.session_state.messages)
+            st.markdown(reply)
 
-    full_messages = [{"role": "system", "content": system_prompt}] + messages
-
-    res = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=full_messages
-    )
-    return res.choices[0].message.content
+    st.session_state.messages.append({"role": "assistant", "content": reply})
 
 # =========================
-# SIDEBAR (CHATGPT STYLE)
+# EMAIL GENERATOR
 # =========================
-with st.sidebar:
-    st.title("⚙️ Controls")
+if st.session_state.email_mode:
 
-    if st.button("💬 Chat"):
-        st.session_state.page = "chat"
+    st.subheader("📧 Email Generator")
 
-    if st.button("🧹 Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
+    subject = st.text_input("Subject")
+    body = st.text_area("Email Content")
 
-    # THEME TOGGLE
-    if st.button("🌓 Toggle Theme"):
-        st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
-        st.rerun()
+    col1, col2 = st.columns(2)
 
-# default page
-if "page" not in st.session_state:
-    st.session_state.page = "chat"
-
-# =========================
-# HEADER
-# =========================
-st.title("🤖 ChatGPT Style AI Assistant")
-
-# =========================
-# LOAD MEMORY
-# =========================
-memory = get_memory(st.session_state.user)
-
-# =========================
-# CHAT PAGE
-# =========================
-if st.session_state.page == "chat":
-
-    # show chat
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
-
-    user_input = st.chat_input("Message AI...")
-
-    if user_input:
-
-        st.session_state.messages.append({"role": "user", "content": user_input})
-
-        # save history
-        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
-                  (st.session_state.user, "user", user_input))
-        conn.commit()
-
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                reply = ask_ai(st.session_state.messages, memory)
-                st.markdown(reply)
-
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-
-        # =========================
-        # UPDATE MEMORY (SMART SUMMARY)
-        # =========================
-        if len(st.session_state.messages) % 6 == 0:
-            mem = ask_ai([
-                {"role": "system", "content": "Summarize user preferences in 1-2 lines."},
-                {"role": "user", "content": str(st.session_state.messages[-6:])}
+    with col1:
+        if st.button("Generate Email"):
+            reply = ask_ai([
+                {"role": "system", "content": "Write a professional email."},
+                {"role": "user", "content": f"Subject: {subject}\nBody: {body}"}
             ])
+            st.session_state.email_output = reply
 
-            update_memory(st.session_state.user, mem)
+    with col2:
+        if st.button("Close Email Tool"):
+            st.session_state.email_mode = False
+            st.rerun()
+
+    if "email_output" in st.session_state:
+        st.markdown("### ✉️ Generated Email")
+        st.markdown(st.session_state.email_output)
 
 # =========================
-# MEMORY DISPLAY (OPTIONAL DEBUG)
+# REPORT GENERATOR
 # =========================
-with st.expander("🧠 AI Memory (User Profile)"):
-    st.write(memory if memory else "No memory yet.")
+if st.session_state.report_mode:
+
+    st.subheader("📊 Report Generator")
+
+    topic = st.text_input("Report Topic")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Create Report"):
+            report = ask_ai([
+                {"role": "system", "content": "Write a professional structured report."},
+                {"role": "user", "content": topic}
+            ])
+            st.session_state.report_output = report
+
+    with col2:
+        if st.button("Close Report Tool"):
+            st.session_state.report_mode = False
+            st.rerun()
+
+    if "report_output" in st.session_state:
+        st.markdown("### 📄 Report")
+        st.markdown(st.session_state.report_output)
+
+# =========================
+# TEXT SUMMARIZER
+# =========================
+if st.session_state.summary_mode:
+
+    st.subheader("📝 Text Summarizer")
+
+    text_input = st.text_area("Paste text here")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Summarize"):
+            summary = ask_ai([
+                {
+                    "role": "system",
+                    "content": "Summarize the text into clear bullet points. Keep only key ideas."
+                },
+                {
+                    "role": "user",
+                    "content": text_input
+                }
+            ])
+            st.session_state.summary_output = summary
+
+    with col2:
+        if st.button("Close Summarizer"):
+            st.session_state.summary_mode = False
+            st.rerun()
+
+    if "summary_output" in st.session_state:
+        st.markdown("### ✨ Summary")
+        st.markdown(st.session_state.summary_output)
+
+# =========================
+# SIDEBAR
+# =========================
+st.sidebar.title("⚙️ Tools")
+
+# Triggers
+if st.sidebar.button("📧 Email Generator"):
+    st.session_state.email_mode = True
+    st.session_state.report_mode = False
+    st.session_state.summary_mode = False
+
+if st.sidebar.button("📊 Report Generator"):
+    st.session_state.report_mode = True
+    st.session_state.email_mode = False
+    st.session_state.summary_mode = False
+
+if st.sidebar.button("📝 Summarizer"):
+    st.session_state.summary_mode = True
+    st.session_state.email_mode = False
+    st.session_state.report_mode = False
+
+if st.sidebar.button("🧹 Clear Chat"):
+    st.session_state.messages = []
+    st.rerun()
+
+# =========================
+# HISTORY
+# =========================
+st.sidebar.subheader("History")
+
+c.execute("SELECT rowid, query FROM history WHERE username=?",
+          (st.session_state.user,))
+rows = c.fetchall()
+
+for i, (rowid, query) in enumerate(rows[-10:]):
+    col1, col2 = st.sidebar.columns([3, 1])
+
+    with col1:
+        if st.button(query, key=f"h{i}"):
+            st.session_state.messages.append({"role": "user", "content": query})
+            reply = ask_ai(st.session_state.messages)
+            st.session_state.messages.append({"role": "assistant", "content": reply})
+            st.rerun()
+
+    with col2:
+        if st.button("❌", key=f"d{i}"):
+            c.execute("DELETE FROM history WHERE rowid=?", (rowid,))
+            conn.commit()
+            st.rerun()
+
+if st.sidebar.button("Delete All History"):
+    c.execute("DELETE FROM history WHERE username=?", (st.session_state.user,))
+    conn.commit()
+    st.rerun()
