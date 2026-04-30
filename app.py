@@ -5,7 +5,9 @@ from groq import Groq
 # =========================
 # API KEY (FROM STREAMLIT SECRETS)
 # =========================
-api_key = "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"
+import os
+
+api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     st.error("❌ Add GROQ_API_KEY in Streamlit Secrets")
     st.stop()
