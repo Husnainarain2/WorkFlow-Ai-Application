@@ -279,13 +279,20 @@ with st.sidebar.expander("☰ Tools", expanded=False):
             file_name="chat_history.txt",
             mime="text/plain")
 
-       # Data Visualization
-    st.markdown("#### Data Visualization")
-    if st.button("Show Dashboard Charts"):
-        st.session_state.show_dashboard = True
+    # =========================
+# DATA VISUALIZATION TOGGLE
+# =========================
+st.sidebar.markdown("#### Data Visualization")
 
-# Show charts in the main page (not sidebar)
-if "show_dashboard" in st.session_state and st.session_state.show_dashboard:
+# Toggle button
+if "show_dashboard" not in st.session_state:
+    st.session_state.show_dashboard = False
+
+if st.sidebar.button("Toggle Dashboard Charts"):
+    st.session_state.show_dashboard = not st.session_state.show_dashboard
+
+# Show or hide charts in main page
+if st.session_state.show_dashboard:
     st.header("Workflow Insights Dashboard")
 
     # --- Collect live stats from session ---
@@ -328,4 +335,3 @@ if "show_dashboard" in st.session_state and st.session_state.show_dashboard:
         ))
     fig3.update_layout(title="Active Workflows Progress", xaxis=dict(range=[0,100]))
     st.plotly_chart(fig3, use_container_width=True)
-
