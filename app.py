@@ -6,31 +6,27 @@ from groq import Groq
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(
-    page_title="Workflow AI Pro",
-    layout="centered",
-    page_icon="⚡"
-)
+st.set_page_config(page_title="Workflow AI Pro", layout="centered", page_icon="⚡")
 
 # =========================
-# CUSTOM CSS INJECTION
+# CUSTOM CSS INJECTION (LIGHT THEME)
 # =========================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap');
 
-/* ─── Root Variables ─── */
+/* ─── Root Variables - Light Theme ─── */
 :root {
-    --bg:        #0a0a0f;
-    --surface:   #111118;
-    --card:      #16161f;
-    --border:    #2a2a3d;
-    --accent:    #7c6eff;
+    --bg:        #ffffff;
+    --surface:   #f8f9fb;
+    --card:      #ffffff;
+    --border:    #e0e3e8;
+    --accent:    #5b4fb3;
     --accent2:   #ff6b9d;
-    --accent3:   #00e5c5;
-    --text:      #e8e8f0;
-    --muted:     #6b6b8a;
-    --success:   #00e5c5;
+    --accent3:   #00b8a9;
+    --text:      #1a1a1a;
+    --muted:     #666666;
+    --success:   #00b8a9;
     --font-head: 'Syne', sans-serif;
     --font-mono: 'DM Mono', monospace;
 }
@@ -47,8 +43,8 @@ html, body, [class*="css"] {
 .block-container { padding-top: 2rem !important; max-width: 780px !important; }
 
 /* ─── Scrollbar ─── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
 /* ─── Sidebar ─── */
@@ -74,7 +70,7 @@ html, body, [class*="css"] {
 [data-testid="stSidebar"] .stButton > button {
     width: 100% !important;
     background: transparent !important;
-    color: var(--muted) !important;
+    color: var(--text) !important;
     border: 1px solid var(--border) !important;
     border-radius: 8px !important;
     font-family: var(--font-mono) !important;
@@ -87,7 +83,7 @@ html, body, [class*="css"] {
     letter-spacing: 0.02em !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: var(--card) !important;
+    background: #f0f0f0 !important;
     color: var(--accent) !important;
     border-color: var(--accent) !important;
     transform: translateX(3px) !important;
@@ -107,16 +103,9 @@ html, body, [class*="css"] {
     letter-spacing: 0.05em !important;
 }
 .stButton > button:hover {
-    background: #9184ff !important;
+    background: #7b6fc4 !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 20px rgba(124, 110, 255, 0.35) !important;
-}
-
-/* Stop button special style */
-.stButton:has(button:contains("Stop")) > button {
-    background: transparent !important;
-    border: 1px solid #ff4d4d !important;
-    color: #ff4d4d !important;
+    box-shadow: 0 4px 20px rgba(91, 79, 179, 0.2) !important;
 }
 
 /* ─── Text Inputs & Areas ─── */
@@ -134,7 +123,7 @@ html, body, [class*="css"] {
 .stTextInput > div > div > input:focus,
 .stTextArea > div > div > textarea:focus {
     border-color: var(--accent) !important;
-    box-shadow: 0 0 0 2px rgba(124,110,255,0.15) !important;
+    box-shadow: 0 0 0 2px rgba(91,79,179,0.1) !important;
 }
 .stTextInput > label,
 .stTextArea > label {
@@ -160,12 +149,12 @@ html, body, [class*="css"] {
 }
 [data-testid="stChatInput"] textarea:focus {
     border-color: var(--accent) !important;
-    box-shadow: 0 0 0 2px rgba(124,110,255,0.15) !important;
+    box-shadow: 0 0 0 2px rgba(91,79,179,0.1) !important;
 }
 
 /* ─── Chat Messages ─── */
 [data-testid="stChatMessage"] {
-    background: var(--card) !important;
+    background: var(--surface) !important;
     border: 1px solid var(--border) !important;
     border-radius: 12px !important;
     padding: 1rem 1.25rem !important;
@@ -177,7 +166,7 @@ html, body, [class*="css"] {
     line-height: 1.7 !important;
 }
 
-/* User messages */
+/* User messages - accent left border */
 [data-testid="stChatMessage"][data-testid*="user"] {
     border-left: 3px solid var(--accent) !important;
 }
@@ -207,10 +196,10 @@ html, body, [class*="css"] {
 
 /* ─── Success / Error messages ─── */
 .stSuccess {
-    background: rgba(0,229,197,0.08) !important;
+    background: rgba(0,184,169,0.08) !important;
     border: 1px solid var(--success) !important;
     border-radius: 8px !important;
-    color: var(--success) !important;
+    color: #00856b !important;
     font-family: var(--font-mono) !important;
     font-size: 0.82rem !important;
 }
@@ -218,7 +207,7 @@ html, body, [class*="css"] {
     background: rgba(255,77,77,0.08) !important;
     border: 1px solid #ff4d4d !important;
     border-radius: 8px !important;
-    color: #ff4d4d !important;
+    color: #d32f2f !important;
     font-family: var(--font-mono) !important;
     font-size: 0.82rem !important;
 }
@@ -228,123 +217,26 @@ h1, h2, h3 {
     font-family: var(--font-head) !important;
     font-weight: 800 !important;
     letter-spacing: -0.02em !important;
+    color: var(--text) !important;
+}
+
+/* ─── Select boxes ─── */
+.stSelectbox > div > div > select {
+    background: var(--card) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # =========================
-# HERO BANNER HTML
-# =========================
-def render_hero(title, subtitle, icon="⚡"):
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(135deg, #16161f 0%, #1a1a2e 100%);
-        border: 1px solid #2a2a3d;
-        border-radius: 16px;
-        padding: 2rem 2.5rem;
-        margin-bottom: 2rem;
-        position: relative;
-        overflow: hidden;
-    ">
-        <div style="
-            position: absolute; top: -30px; right: -30px;
-            width: 140px; height: 140px;
-            background: radial-gradient(circle, rgba(124,110,255,0.18) 0%, transparent 70%);
-            border-radius: 50%;
-        "></div>
-        <div style="
-            position: absolute; bottom: -20px; left: 20%;
-            width: 80px; height: 80px;
-            background: radial-gradient(circle, rgba(255,107,157,0.12) 0%, transparent 70%);
-            border-radius: 50%;
-        "></div>
-        <div style="font-size: 2rem; margin-bottom: 0.5rem;">{icon}</div>
-        <h1 style="
-            font-family: 'Syne', sans-serif;
-            font-size: 1.8rem;
-            font-weight: 800;
-            color: #e8e8f0;
-            margin: 0 0 0.4rem 0;
-            letter-spacing: -0.03em;
-        ">{title}</h1>
-        <p style="
-            font-family: 'DM Mono', monospace;
-            font-size: 0.82rem;
-            color: #6b6b8a;
-            margin: 0;
-            letter-spacing: 0.04em;
-        ">{subtitle}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# =========================
-# BADGE / CHIP HTML
-# =========================
-def badge(text, color="#7c6eff"):
-    return f"""<span style="
-        display: inline-block;
-        background: {color}1a;
-        border: 1px solid {color}55;
-        color: {color};
-        font-family: 'DM Mono', monospace;
-        font-size: 0.7rem;
-        font-weight: 500;
-        padding: 2px 10px;
-        border-radius: 20px;
-        letter-spacing: 0.06em;
-        margin-right: 6px;
-    ">{text}</span>"""
-
-# =========================
-# TOOL CARD HTML
-# =========================
-def tool_card(icon, title, desc, color="#7c6eff"):
-    st.markdown(f"""
-    <div style="
-        background: #16161f;
-        border: 1px solid #2a2a3d;
-        border-left: 3px solid {color};
-        border-radius: 12px;
-        padding: 1.2rem 1.5rem;
-        margin-bottom: 1rem;
-    ">
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
-            <span style="font-size: 1.2rem;">{icon}</span>
-            <span style="
-                font-family: 'Syne', sans-serif;
-                font-weight: 700;
-                font-size: 1rem;
-                color: #e8e8f0;
-            ">{title}</span>
-        </div>
-        <p style="
-            font-family: 'DM Mono', monospace;
-            font-size: 0.78rem;
-            color: #6b6b8a;
-            margin: 0;
-            line-height: 1.6;
-        ">{desc}</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# =========================
-# DIVIDER
-# =========================
-def divider(label=""):
-    st.markdown(f"""
-    <div style="display:flex; align-items:center; gap:12px; margin: 1.2rem 0;">
-        <div style="flex:1; height:1px; background:#2a2a3d;"></div>
-        {f'<span style="font-family:DM Mono,monospace; font-size:0.7rem; color:#6b6b8a; letter-spacing:0.08em; text-transform:uppercase;">{label}</span>' if label else ''}
-        <div style="flex:1; height:1px; background:#2a2a3d;"></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# =========================
-# DB SETUP
+# DB SETUP (USERS + CHAT)
 # =========================
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
 
+# USERS TABLE
 c.execute("""
 CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY,
@@ -352,6 +244,7 @@ CREATE TABLE IF NOT EXISTS users (
 )
 """)
 
+# CHAT TABLE
 c.execute("""
 CREATE TABLE IF NOT EXISTS chat_history (
     user TEXT,
@@ -359,6 +252,7 @@ CREATE TABLE IF NOT EXISTS chat_history (
     message TEXT
 )
 """)
+
 conn.commit()
 
 # =========================
@@ -366,15 +260,18 @@ conn.commit()
 # =========================
 if "user" not in st.session_state:
     st.session_state.user = None
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
+
 if "mode" not in st.session_state:
     st.session_state.mode = "chat"
+
 if "stop_stream" not in st.session_state:
     st.session_state.stop_stream = False
 
 # =========================
-# AUTH PAGE
+# AUTH PAGE (LOGIN + SIGNUP)
 # =========================
 def auth_page():
     st.markdown("""
@@ -384,48 +281,50 @@ def auth_page():
             font-family: 'Syne', sans-serif;
             font-size: 2rem;
             font-weight: 800;
-            color: #e8e8f0;
+            color: #1a1a1a;
             margin: 0 0 0.4rem;
             letter-spacing: -0.03em;
         ">Workflow AI Pro</h1>
         <p style="
             font-family: 'DM Mono', monospace;
             font-size: 0.78rem;
-            color: #6b6b8a;
+            color: #666666;
             letter-spacing: 0.06em;
-        ">SIGN IN TO CONTINUE</p>
+            text-transform: uppercase;
+        ">Sign In to Continue</p>
     </div>
     """, unsafe_allow_html=True)
 
-    tab1, tab2 = st.tabs(["🔑  Login", "✨  Sign Up"])
+    tab1, tab2 = st.tabs(["🔑 Login", "✨ Sign Up"])
 
     with tab1:
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        username = st.text_input("Username", key="login_user", placeholder="your_username")
-        password = st.text_input("Password", type="password", key="login_pass", placeholder="••••••••")
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-        if st.button("Login →", use_container_width=True):
-            c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        username = st.text_input("Login Username", placeholder="your_username")
+        password = st.text_input("Password", type="password", placeholder="••••••••")
+
+        if st.button("Login", use_container_width=True):
+            c.execute("SELECT * FROM users WHERE username=? AND password=?",
+                      (username, password))
             user = c.fetchone()
+
             if user:
                 st.session_state.user = username
-                st.success("✓ Login successful")
+                st.success("✓ Login successful!")
                 st.rerun()
             else:
                 st.error("✗ Invalid credentials")
 
     with tab2:
-        st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
-        new_user = st.text_input("Choose Username", key="signup_user", placeholder="new_username")
-        new_pass = st.text_input("Choose Password", type="password", key="signup_pass", placeholder="••••••••")
-        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-        if st.button("Create Account →", use_container_width=True):
+        new_user = st.text_input("Create Username", placeholder="new_username")
+        new_pass = st.text_input("Create Password", type="password", placeholder="••••••••")
+
+        if st.button("Sign Up", use_container_width=True):
             try:
-                c.execute("INSERT INTO users VALUES (?,?)", (new_user, new_pass))
+                c.execute("INSERT INTO users VALUES (?,?)",
+                          (new_user, new_pass))
                 conn.commit()
-                st.success("✓ Account created — go to Login")
+                st.success("✓ Account created! Now login")
             except:
-                st.error("✗ Username already taken")
+                st.error("✗ Username already exists")
 
 # =========================
 # CHECK LOGIN
@@ -447,12 +346,14 @@ if not api_key:
 client = Groq(api_key=api_key)
 
 # =========================
-# LOAD HISTORY
+# LOAD HISTORY (USER BASED)
 # =========================
 def load_history():
     c.execute("SELECT role, message FROM chat_history WHERE user=?", (user,))
     rows = c.fetchall()
-    st.session_state.messages = [{"role": r, "content": m} for r, m in rows]
+    st.session_state.messages = [
+        {"role": r, "content": m} for r, m in rows
+    ]
 
 if len(st.session_state.messages) == 0:
     load_history()
@@ -466,214 +367,207 @@ def ask_ai_stream(messages):
         messages=messages,
         stream=True
     )
+
     full_response = ""
     placeholder = st.empty()
+
     for chunk in response:
         if st.session_state.stop_stream:
             break
+
         if chunk.choices[0].delta.content:
             full_response += chunk.choices[0].delta.content
             placeholder.markdown(full_response)
+
     return full_response
 
 # =========================
 # SIDEBAR
 # =========================
-with st.sidebar:
-    st.markdown(f"""
-    <div style="margin-bottom: 1.5rem;">
-        <div style="font-size: 1.4rem; margin-bottom: 4px;">⚡</div>
-        <div style="
-            font-family: 'Syne', sans-serif;
-            font-weight: 800;
-            font-size: 1rem;
-            color: #7c6eff;
-            letter-spacing: 0.04em;
-        ">WORKFLOW AI PRO</div>
-        <div style="
-            font-family: 'DM Mono', monospace;
-            font-size: 0.72rem;
-            color: #6b6b8a;
-            margin-top: 2px;
-        ">logged in as <span style="color: #00e5c5;">{user}</span></div>
-    </div>
-    """, unsafe_allow_html=True)
+st.sidebar.title(f"⚙️ Workflow AI ({user})")
 
+if st.sidebar.button("💬 Chat"):
+    st.session_state.mode = "chat"
+
+if st.sidebar.button("📧 Email"):
+    st.session_state.mode = "email"
+
+if st.sidebar.button("📊 Report"):
+    st.session_state.mode = "report"
+
+if st.sidebar.button("📝 Summarizer"):
+    st.session_state.mode = "summary"
+
+if st.sidebar.button("🧹 Clear Chat"):
+    st.session_state.messages = []
+    c.execute("DELETE FROM chat_history WHERE user=?", (user,))
+    conn.commit()
+    st.rerun()
+
+if st.sidebar.button("🚪 Logout"):
+    st.session_state.user = None
+    st.session_state.messages = []
+    st.rerun()
+
+# =========================
+# TITLE
+# =========================
+st.markdown("""
+<div style="
+    background: linear-gradient(135deg, #f8f9fb 0%, #ffffff 100%);
+    border: 1px solid #e0e3e8;
+    border-radius: 12px;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+">
+    <h1 style="
+        font-family: 'Syne', sans-serif;
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #1a1a1a;
+        margin: 0 0 0.3rem;
+        letter-spacing: -0.03em;
+    ">🤖 ChatGPT Style AI Pro</h1>
+    <p style="
+        font-family: 'DM Mono', monospace;
+        font-size: 0.82rem;
+        color: #666666;
+        margin: 0;
+        letter-spacing: 0.04em;
+    ">Powered by Groq & Llama 3.1</p>
+</div>
+""", unsafe_allow_html=True)
+
+# =========================
+# SHOW CHAT
+# =========================
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
+
+# =========================
+# STOP BUTTON
+# =========================
+if st.button("⛔ Stop Generating"):
+    st.session_state.stop_stream = True
+
+# =========================
+# CHAT INPUT
+# =========================
+user_input = st.chat_input("Message AI...")
+
+if user_input:
+
+    st.session_state.stop_stream = False
+
+    st.session_state.messages.append({"role": "user", "content": user_input})
+
+    with st.chat_message("user"):
+        st.markdown(user_input)
+
+    c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+              (user, "user", user_input))
+    conn.commit()
+
+    with st.chat_message("assistant"):
+        reply = ask_ai_stream(st.session_state.messages)
+
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+
+    c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+              (user, "assistant", reply))
+    conn.commit()
+
+# =========================
+# TOOLS
+# =========================
+if st.session_state.mode == "email":
     st.markdown("""
     <div style="
-        font-family: 'DM Mono', monospace;
-        font-size: 0.68rem;
-        color: #6b6b8a;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        margin-bottom: 8px;
-        padding-left: 4px;
-    ">Navigation</div>
-    """, unsafe_allow_html=True)
-
-    if st.button("💬  Chat"):
-        st.session_state.mode = "chat"
-    if st.button("📧  Email Generator"):
-        st.session_state.mode = "email"
-    if st.button("📊  Report Builder"):
-        st.session_state.mode = "report"
-    if st.button("📝  Summarizer"):
-        st.session_state.mode = "summary"
-
-    st.markdown("""
-    <div style="
-        font-family: 'DM Mono', monospace;
-        font-size: 0.68rem;
-        color: #6b6b8a;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        margin: 1.2rem 0 8px;
-        padding-left: 4px;
-    ">Account</div>
-    """, unsafe_allow_html=True)
-
-    if st.button("🧹  Clear History"):
-        st.session_state.messages = []
-        c.execute("DELETE FROM chat_history WHERE user=?", (user,))
-        conn.commit()
-        st.rerun()
-
-    if st.button("🚪  Logout"):
-        st.session_state.user = None
-        st.session_state.messages = []
-        st.rerun()
-
-    # Model info badge
-    st.markdown(f"""
-    <div style="
-        margin-top: 2rem;
-        padding: 0.75rem 1rem;
-        background: #111118;
-        border: 1px solid #2a2a3d;
-        border-radius: 10px;
+        background: linear-gradient(135deg, #fef5f7 0%, #fff9fa 100%);
+        border: 1px solid #f0d5dd;
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
     ">
-        <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #6b6b8a; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px;">Model</div>
-        <div style="font-family: 'DM Mono', monospace; font-size: 0.75rem; color: #7c6eff;">llama-3.1-8b-instant</div>
-        <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #6b6b8a; margin-top: 4px;">via Groq API</div>
+        <h2 style="
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0;
+            letter-spacing: -0.02em;
+        ">📧 Email Generator</h2>
     </div>
     """, unsafe_allow_html=True)
+    
+    subject = st.text_input("Subject", placeholder="e.g., Follow-up on project proposal")
+    body = st.text_area("Body", placeholder="Enter email context or key points...")
 
-# =========================
-# MAIN CONTENT
-# =========================
+    if st.button("Generate Email", use_container_width=True):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write professional email"},
+            {"role": "user", "content": f"{subject}\n{body}"}
+        ])
+        st.write(result)
 
-# ── CHAT MODE ──
-if st.session_state.mode == "chat":
-    render_hero("AI Chat", "Ask anything — get instant, streamed responses.", "💬")
-
-    msg_count = len(st.session_state.messages)
-    st.markdown(f"""
-    <div style="margin-bottom: 1.2rem;">
-        {badge(f"{msg_count // 2} exchanges", '#7c6eff')}
-        {badge('streaming enabled', '#00e5c5')}
+if st.session_state.mode == "report":
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #f0f5ff 0%, #f8faff 100%);
+        border: 1px solid #d0dff7;
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+    ">
+        <h2 style="
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0;
+            letter-spacing: -0.02em;
+        ">📊 Report Generator</h2>
     </div>
     """, unsafe_allow_html=True)
+    
+    topic = st.text_input("Topic", placeholder="Enter report topic or question...")
 
-    for msg in st.session_state.messages:
-        with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+    if st.button("Generate Report", use_container_width=True):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Write structured report"},
+            {"role": "user", "content": topic}
+        ])
+        st.write(result)
 
-    col1, col2 = st.columns([5, 1])
-    with col2:
-        if st.button("⛔ Stop"):
-            st.session_state.stop_stream = True
+if st.session_state.mode == "summary":
+    st.markdown("""
+    <div style="
+        background: linear-gradient(135deg, #f0fff9 0%, #f8fffd 100%);
+        border: 1px solid #d0f5ea;
+        border-radius: 12px;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+    ">
+        <h2 style="
+            font-family: 'Syne', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #1a1a1a;
+            margin: 0;
+            letter-spacing: -0.02em;
+        ">📝 Summarizer</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    text = st.text_area("Paste text", placeholder="Paste article, report, or any text to summarize...", height=150)
 
-    user_input = st.chat_input("Message AI...")
+    if st.button("Summarize", use_container_width=True):
+        result = ask_ai_stream([
+            {"role": "system", "content": "Summarize in bullet points"},
+            {"role": "user", "content": text}
+        ])
+        st.write(result)
 
-    if user_input:
-        st.session_state.stop_stream = False
-        st.session_state.messages.append({"role": "user", "content": user_input})
-        with st.chat_message("user"):
-            st.markdown(user_input)
-        c.execute("INSERT INTO chat_history VALUES (?,?,?)", (user, "user", user_input))
-        conn.commit()
-        with st.chat_message("assistant"):
-            reply = ask_ai_stream(st.session_state.messages)
-        st.session_state.messages.append({"role": "assistant", "content": reply})
-        c.execute("INSERT INTO chat_history VALUES (?,?,?)", (user, "assistant", reply))
-        conn.commit()
-
-# ── EMAIL MODE ──
-elif st.session_state.mode == "email":
-    render_hero("Email Generator", "Generate polished professional emails in seconds.", "📧")
-
-    tool_card(
-        "📧", "Professional Email Writer",
-        "Enter a subject and key points — AI will draft a clean, context-aware email for you.",
-        "#ff6b9d"
-    )
-
-    subject = st.text_input("Email Subject", placeholder="e.g. Follow-up on project proposal")
-    body = st.text_area("Key Points / Context", height=130,
-                         placeholder="e.g. Following up after meeting, asking for timeline, keeping tone friendly...")
-
-    if st.button("Generate Email →", use_container_width=True):
-        if subject or body:
-            divider("AI output")
-            with st.spinner(""):
-                result = ask_ai_stream([
-                    {"role": "system", "content": "You are an expert email writer. Write a professional, well-structured email. Use clear paragraphs. Do not include placeholders."},
-                    {"role": "user", "content": f"Subject: {subject}\nContext: {body}"}
-                ])
-        else:
-            st.error("✗ Please fill in at least one field")
-
-# ── REPORT MODE ──
-elif st.session_state.mode == "report":
-    render_hero("Report Builder", "Generate structured, detailed reports on any topic.", "📊")
-
-    tool_card(
-        "📊", "Intelligent Report Generator",
-        "Provide a topic or question and receive a well-organized report with headings, analysis, and conclusions.",
-        "#7c6eff"
-    )
-
-    topic = st.text_input("Report Topic", placeholder="e.g. Impact of AI on healthcare in 2025")
-    col1, col2 = st.columns(2)
-    with col1:
-        length = st.selectbox("Length", ["Concise (300 words)", "Medium (600 words)", "Detailed (1000+ words)"])
-    with col2:
-        tone = st.selectbox("Tone", ["Professional", "Academic", "Executive Summary"])
-
-    if st.button("Generate Report →", use_container_width=True):
-        if topic:
-            divider("AI output")
-            with st.spinner(""):
-                result = ask_ai_stream([
-                    {"role": "system", "content": f"You are a professional report writer. Write a {tone.lower()} report with clear headings (##), subheadings, and structured paragraphs. Target length: {length}."},
-                    {"role": "user", "content": topic}
-                ])
-        else:
-            st.error("✗ Please enter a topic")
-
-# ── SUMMARY MODE ──
-elif st.session_state.mode == "summary":
-    render_hero("Summarizer", "Condense long text into clear, actionable bullet points.", "📝")
-
-    tool_card(
-        "📝", "Smart Text Summarizer",
-        "Paste any text — articles, reports, notes — and get a concise bullet-point summary instantly.",
-        "#00e5c5"
-    )
-
-    text = st.text_area("Paste Text to Summarize", height=200,
-                          placeholder="Paste article, report, notes, or any long text here...")
-
-    if st.button("Summarize →", use_container_width=True):
-        if text.strip():
-            divider("AI output")
-            with st.spinner(""):
-                result = ask_ai_stream([
-                    {"role": "system", "content": "Summarize the following text into clear, concise bullet points. Capture key ideas, facts, and conclusions. Be thorough but avoid redundancy."},
-                    {"role": "user", "content": text}
-                ])
-        else:
-            st.error("✗ Please paste some text first")
-
-# Reset stop flag
+# reset
 st.session_state.stop_stream = False
