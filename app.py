@@ -472,7 +472,7 @@ st.markdown("""
         color: #1a1a1a;
         margin: 0 0 0.3rem;
         letter-spacing: -0.03em;
-    ">🤖 ChatGPT Style AI Pro</h1>
+    ">Work Flow Ai</h1>
     <p style="
         font-family: 'DM Mono', monospace;
         font-size: 0.82rem;
