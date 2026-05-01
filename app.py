@@ -6,7 +6,7 @@ from groq import Groq
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="Workflow AI Pro", layout="centered", page_icon="⚡")
+st.set_page_config(page_title="Workflow AI Pro", layout="wide", page_icon="⚡")
 
 # =========================
 # CUSTOM CSS INJECTION (LIGHT THEME)
@@ -40,7 +40,6 @@ html, body, [class*="css"] {
 
 /* ─── Hide Streamlit Branding ─── */
 #MainMenu, footer, header { visibility: hidden; }
-.block-container { padding-top: 2rem !important; max-width: 780px !important; }
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 6px; }
@@ -50,43 +49,33 @@ html, body, [class*="css"] {
 /* ─── Sidebar ─── */
 [data-testid="stSidebar"] {
     background: var(--surface) !important;
-    border-right: 1px solid var(--border) !important;
-    padding: 1.5rem 1rem !important;
+    border-right: 2px solid var(--border) !important;
+    padding: 2rem 1.5rem !important;
 }
 [data-testid="stSidebar"] * { color: var(--text) !important; }
-
-/* Sidebar title */
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] .stMarkdown h1 {
-    font-family: var(--font-head) !important;
-    font-size: 1.1rem !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.05em !important;
-    color: var(--accent) !important;
-    margin-bottom: 1.5rem !important;
-}
 
 /* ─── Sidebar Buttons ─── */
 [data-testid="stSidebar"] .stButton > button {
     width: 100% !important;
     background: transparent !important;
     color: var(--text) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
+    border: 1.5px solid var(--border) !important;
+    border-radius: 10px !important;
     font-family: var(--font-mono) !important;
-    font-size: 0.8rem !important;
-    font-weight: 500 !important;
-    padding: 0.55rem 1rem !important;
-    margin-bottom: 6px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    padding: 0.7rem 1rem !important;
+    margin-bottom: 8px !important;
     text-align: left !important;
     transition: all 0.2s ease !important;
     letter-spacing: 0.02em !important;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: #f0f0f0 !important;
+    background: #e8e5f5 !important;
     color: var(--accent) !important;
     border-color: var(--accent) !important;
-    transform: translateX(3px) !important;
+    transform: translateX(4px) !important;
+    box-shadow: 0 2px 8px rgba(91,79,179,0.1) !important;
 }
 
 /* ─── Main Area Buttons ─── */
@@ -166,11 +155,6 @@ html, body, [class*="css"] {
     line-height: 1.7 !important;
 }
 
-/* User messages - accent left border */
-[data-testid="stChatMessage"][data-testid*="user"] {
-    border-left: 3px solid var(--accent) !important;
-}
-
 /* ─── Tabs ─── */
 .stTabs [data-baseweb="tab-list"] {
     background: var(--surface) !important;
@@ -212,7 +196,7 @@ html, body, [class*="css"] {
     font-size: 0.82rem !important;
 }
 
-/* ─── Subheaders ─── */
+/* ─── Headings ─── */
 h1, h2, h3 {
     font-family: var(--font-head) !important;
     font-weight: 800 !important;
@@ -220,33 +204,11 @@ h1, h2, h3 {
     color: var(--text) !important;
 }
 
-/* ─── Select boxes ─── */
-.stSelectbox > div > div > select {
-    background: var(--card) !important;
-    color: var(--text) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-}
-
-/* ─── Toggle Button ─── */
-[key="toggle_sidebar"] {
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 999 !important;
-}
-
-[key="toggle_sidebar"] > button {
-    background: var(--accent) !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-size: 1rem !important;
-    padding: 0.6rem 0.75rem !important;
-    min-width: 45px !important;
-}
-
-[key="toggle_sidebar"] > button:hover {
-    background: #7b6fc4 !important;
+/* ─── Section Divider ─── */
+.sidebar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 1rem 0;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -290,9 +252,6 @@ if "mode" not in st.session_state:
 
 if "stop_stream" not in st.session_state:
     st.session_state.stop_stream = False
-
-if "sidebar_open" not in st.session_state:
-    st.session_state.sidebar_open = True
 
 # =========================
 # AUTH PAGE (LOGIN + SIGNUP)
@@ -406,119 +365,110 @@ def ask_ai_stream(messages):
     return full_response
 
 # =========================
-# TOGGLE BUTTON (TOP)
+# SIDEBAR - TOOLS & NAVIGATION
 # =========================
-col1, col2 = st.columns([1, 10])
+st.sidebar.markdown("""
+<div style="text-align: center; margin-bottom: 1.5rem;">
+    <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
+    <h2 style="
+        font-family: 'Syne', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 800;
+        color: #5b4fb3;
+        margin: 0 0 0.3rem;
+        letter-spacing: -0.02em;
+    ">WORKFLOW AI PRO</h2>
+    <p style="
+        font-family: 'DM Mono', monospace;
+        font-size: 0.68rem;
+        color: #666666;
+        margin: 0;
+        letter-spacing: 0.06em;
+    ">User: <span style="color: #5b4fb3; font-weight: 600;">{}</span></p>
+</div>
+""".format(user), unsafe_allow_html=True)
+
+st.sidebar.markdown("---")
+
+# Tools Section
+st.sidebar.markdown("""
+<div style="
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: #666666;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    margin-top: 1rem;
+    font-weight: 700;
+">📚 Tools</div>
+""", unsafe_allow_html=True)
+
+col1, col2, col3, col4 = st.sidebar.columns(2)
 with col1:
-    if st.button("☰" if st.session_state.sidebar_open else "→", key="toggle_sidebar", help="Toggle Sidebar"):
-        st.session_state.sidebar_open = not st.session_state.sidebar_open
-        st.rerun()
-
-# =========================
-# SIDEBAR
-# =========================
-if st.session_state.sidebar_open:
-    st.sidebar.markdown("""
-    <div style="
-        padding-bottom: 1rem;
-        border-bottom: 1px solid #e0e3e8;
-        margin-bottom: 1.2rem;
-    ">
-        <h2 style="
-            font-family: 'Syne', sans-serif;
-            font-size: 1rem;
-            font-weight: 800;
-            color: #5b4fb3;
-            margin: 0 0 0.5rem;
-            letter-spacing: 0.04em;
-        ">⚙️ Workflow AI</h2>
-        <p style="
-            font-family: 'DM Mono', monospace;
-            font-size: 0.72rem;
-            color: #666666;
-            margin: 0;
-            letter-spacing: 0.04em;
-        ">User: <span style="color: #5b4fb3; font-weight: 600;">{user}</span></p>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.sidebar.markdown("""
-    <div style="
-        font-family: 'DM Mono', monospace;
-        font-size: 0.68rem;
-        color: #666666;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        margin-bottom: 10px;
-        padding-left: 4px;
-        font-weight: 600;
-    ">📚 Tools</div>
-    """, unsafe_allow_html=True)
-
-    # Tool buttons
-    if st.sidebar.button("💬 Chat", use_container_width=True, key="btn_chat"):
+    if st.button("💬\nChat", use_container_width=True, key="btn_chat"):
         st.session_state.mode = "chat"
-        st.rerun()
 
-    if st.sidebar.button("📧 Email Generator", use_container_width=True, key="btn_email"):
+with col2:
+    if st.button("📧\nEmail", use_container_width=True, key="btn_email"):
         st.session_state.mode = "email"
-        st.rerun()
 
-    if st.sidebar.button("📊 Report Generator", use_container_width=True, key="btn_report"):
+with col3:
+    if st.button("📊\nReport", use_container_width=True, key="btn_report"):
         st.session_state.mode = "report"
-        st.rerun()
 
-    if st.sidebar.button("📝 Summarizer", use_container_width=True, key="btn_summary"):
+with col4:
+    if st.button("📝\nSummarize", use_container_width=True, key="btn_summary"):
         st.session_state.mode = "summary"
-        st.rerun()
 
-    st.sidebar.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+st.sidebar.markdown("---")
 
-    st.sidebar.markdown("""
-    <div style="
-        font-family: 'DM Mono', monospace;
-        font-size: 0.68rem;
-        color: #666666;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        margin-bottom: 10px;
-        padding-left: 4px;
-        font-weight: 600;
-    ">⚡ Actions</div>
-    """, unsafe_allow_html=True)
+# Actions Section
+st.sidebar.markdown("""
+<div style="
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: #666666;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    margin-top: 1rem;
+    font-weight: 700;
+">⚡ Actions</div>
+""", unsafe_allow_html=True)
 
-    if st.sidebar.button("🧹 Clear Chat History", use_container_width=True, key="btn_clear"):
-        st.session_state.messages = []
-        c.execute("DELETE FROM chat_history WHERE user=?", (user,))
-        conn.commit()
-        st.success("✓ Chat history cleared")
-        st.rerun()
+if st.sidebar.button("🧹 Clear History", use_container_width=True, key="btn_clear"):
+    st.session_state.messages = []
+    c.execute("DELETE FROM chat_history WHERE user=?", (user,))
+    conn.commit()
+    st.success("✓ Chat history cleared")
 
-    if st.sidebar.button("🚪 Logout", use_container_width=True, key="btn_logout"):
-        st.session_state.user = None
-        st.session_state.messages = []
-        st.rerun()
+if st.sidebar.button("🚪 Logout", use_container_width=True, key="btn_logout"):
+    st.session_state.user = None
+    st.session_state.messages = []
+    st.rerun()
 
-    st.sidebar.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
-
-    # Model info box
-    st.sidebar.markdown("""
-    <div style="
-        padding: 1rem;
-        background: #f8f9fb;
-        border: 1px solid #e0e3e8;
-        border-radius: 10px;
-        margin-top: 1rem;
-    ">
-        <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #666666; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; font-weight: 600;">Current Model</div>
-        <div style="font-family: 'DM Mono', monospace; font-size: 0.8rem; color: #5b4fb3; font-weight: 600;">llama-3.1-8b</div>
-        <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #666666; margin-top: 6px;">via Groq API</div>
-    </div>
-    """, unsafe_allow_html=True)
+# Model Info
+st.sidebar.markdown("---")
+st.sidebar.markdown("""
+<div style="
+    padding: 1rem;
+    background: #f8f9fb;
+    border: 1.5px solid #e0e3e8;
+    border-radius: 12px;
+    text-align: center;
+">
+    <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #666666; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; font-weight: 600;">Current Model</div>
+    <div style="font-family: 'DM Mono', monospace; font-size: 0.85rem; color: #5b4fb3; font-weight: 700;">llama-3.1-8b</div>
+    <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #666666; margin-top: 8px;">Powered by Groq</div>
+</div>
+""", unsafe_allow_html=True)
 
 # =========================
-# TITLE
+# MAIN CONTENT
 # =========================
+
+# Show banner
 st.markdown("""
 <div style="
     background: linear-gradient(135deg, #f8f9fb 0%, #ffffff 100%);
@@ -541,54 +491,47 @@ st.markdown("""
         color: #666666;
         margin: 0;
         letter-spacing: 0.04em;
-    ">Powered by Groq & Llama 3.1</p>
+    ">Mode: <span style="color: #5b4fb3; font-weight: 600; text-transform: uppercase;">{}</span></p>
 </div>
-""", unsafe_allow_html=True)
+""".format(st.session_state.mode), unsafe_allow_html=True)
 
 # =========================
-# SHOW CHAT
+# CHAT MODE
 # =========================
-for msg in st.session_state.messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
+if st.session_state.mode == "chat":
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
-# =========================
-# STOP BUTTON
-# =========================
-if st.button("⛔ Stop Generating"):
-    st.session_state.stop_stream = True
+    if st.button("⛔ Stop Generating"):
+        st.session_state.stop_stream = True
 
-# =========================
-# CHAT INPUT
-# =========================
-user_input = st.chat_input("Message AI...")
+    user_input = st.chat_input("Message AI...")
 
-if user_input:
+    if user_input:
+        st.session_state.stop_stream = False
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-    st.session_state.stop_stream = False
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-    st.session_state.messages.append({"role": "user", "content": user_input})
+        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+                  (user, "user", user_input))
+        conn.commit()
 
-    with st.chat_message("user"):
-        st.markdown(user_input)
+        with st.chat_message("assistant"):
+            reply = ask_ai_stream(st.session_state.messages)
 
-    c.execute("INSERT INTO chat_history VALUES (?,?,?)",
-              (user, "user", user_input))
-    conn.commit()
+        st.session_state.messages.append({"role": "assistant", "content": reply})
 
-    with st.chat_message("assistant"):
-        reply = ask_ai_stream(st.session_state.messages)
-
-    st.session_state.messages.append({"role": "assistant", "content": reply})
-
-    c.execute("INSERT INTO chat_history VALUES (?,?,?)",
-              (user, "assistant", reply))
-    conn.commit()
+        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+                  (user, "assistant", reply))
+        conn.commit()
 
 # =========================
-# TOOLS
+# EMAIL MODE
 # =========================
-if st.session_state.mode == "email":
+elif st.session_state.mode == "email":
     st.markdown("""
     <div style="
         background: linear-gradient(135deg, #fef5f7 0%, #fff9fa 100%);
@@ -609,16 +552,22 @@ if st.session_state.mode == "email":
     """, unsafe_allow_html=True)
     
     subject = st.text_input("Subject", placeholder="e.g., Follow-up on project proposal")
-    body = st.text_area("Body", placeholder="Enter email context or key points...")
+    body = st.text_area("Body", placeholder="Enter email context or key points...", height=150)
 
     if st.button("Generate Email", use_container_width=True):
-        result = ask_ai_stream([
-            {"role": "system", "content": "Write professional email"},
-            {"role": "user", "content": f"{subject}\n{body}"}
-        ])
-        st.write(result)
+        if subject or body:
+            result = ask_ai_stream([
+                {"role": "system", "content": "Write professional email"},
+                {"role": "user", "content": f"{subject}\n{body}"}
+            ])
+            st.write(result)
+        else:
+            st.error("✗ Please fill in at least one field")
 
-if st.session_state.mode == "report":
+# =========================
+# REPORT MODE
+# =========================
+elif st.session_state.mode == "report":
     st.markdown("""
     <div style="
         background: linear-gradient(135deg, #f0f5ff 0%, #f8faff 100%);
@@ -641,13 +590,19 @@ if st.session_state.mode == "report":
     topic = st.text_input("Topic", placeholder="Enter report topic or question...")
 
     if st.button("Generate Report", use_container_width=True):
-        result = ask_ai_stream([
-            {"role": "system", "content": "Write structured report"},
-            {"role": "user", "content": topic}
-        ])
-        st.write(result)
+        if topic:
+            result = ask_ai_stream([
+                {"role": "system", "content": "Write structured report"},
+                {"role": "user", "content": topic}
+            ])
+            st.write(result)
+        else:
+            st.error("✗ Please enter a topic")
 
-if st.session_state.mode == "summary":
+# =========================
+# SUMMARY MODE
+# =========================
+elif st.session_state.mode == "summary":
     st.markdown("""
     <div style="
         background: linear-gradient(135deg, #f0fff9 0%, #f8fffd 100%);
@@ -667,14 +622,17 @@ if st.session_state.mode == "summary":
     </div>
     """, unsafe_allow_html=True)
     
-    text = st.text_area("Paste text", placeholder="Paste article, report, or any text to summarize...", height=150)
+    text = st.text_area("Paste text", placeholder="Paste article, report, or any text to summarize...", height=200)
 
     if st.button("Summarize", use_container_width=True):
-        result = ask_ai_stream([
-            {"role": "system", "content": "Summarize in bullet points"},
-            {"role": "user", "content": text}
-        ])
-        st.write(result)
+        if text.strip():
+            result = ask_ai_stream([
+                {"role": "system", "content": "Summarize in bullet points"},
+                {"role": "user", "content": text}
+            ])
+            st.write(result)
+        else:
+            st.error("✗ Please paste some text first")
 
 # reset
 st.session_state.stop_stream = False
