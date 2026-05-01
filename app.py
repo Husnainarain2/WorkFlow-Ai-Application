@@ -6,7 +6,6 @@ from groq import Groq
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(page_title="Workflow AI Pro", layout="wide", page_icon="⚡")
 st.set_page_config(
     page_title="Workflow AI Pro",
     layout="wide",
@@ -226,25 +225,26 @@ h1, h2, h3 {
 conn = sqlite3.connect("users.db", check_same_thread=False)
 c = conn.cursor()
 
-# USERS TABLE
+# USERS TABLE (FINAL)
 c.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    username TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE,
+    username TEXT,
     password TEXT
 )
 """)
 
-# CHAT TABLE
+# CHAT TABLE (FINAL)
 c.execute("""
 CREATE TABLE IF NOT EXISTS chat_history (
-    user TEXT,
+    user_id INTEGER,
     role TEXT,
     message TEXT
 )
 """)
 
 conn.commit()
-
 # =========================
 # SESSION STATE
 # =========================
@@ -264,58 +264,40 @@ if "stop_stream" not in st.session_state:
 # AUTH PAGE (LOGIN + SIGNUP)
 # =========================
 def auth_page():
-    st.markdown("""
-    <div style="text-align:center; padding: 2rem 0 1.5rem;">
-        <div style="font-size: 3rem; margin-bottom: 0.5rem;">⚡</div>
-        <h1 style="
-            font-family: 'Syne', sans-serif;
-            font-size: 2rem;
-            font-weight: 800;
-            color: #1a1a1a;
-            margin: 0 0 0.4rem;
-            letter-spacing: -0.03em;
-        ">Workflow AI Pro</h1>
-        <p style="
-            font-family: 'DM Mono', monospace;
-            font-size: 0.78rem;
-            color: #666666;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-        ">Sign In to Continue</p>
-    </div>
-    """, unsafe_allow_html=True)
-
     tab1, tab2 = st.tabs(["🔑 Login", "✨ Sign Up"])
 
+    # LOGIN
     with tab1:
-        username = st.text_input("Login Username", placeholder="your_username")
-        password = st.text_input("Password", type="password", placeholder="••••••••")
+        email = st.text_input("Email", key="login_email")
+        password = st.text_input("Password", type="password", key="login_pass")
 
         if st.button("Login", use_container_width=True):
-            c.execute("SELECT * FROM users WHERE username=? AND password=?",
-                      (username, password))
+            c.execute("SELECT id FROM users WHERE email=? AND password=?", (email, password))
             user = c.fetchone()
 
             if user:
-                st.session_state.user = username
+                st.session_state.user = user[0]
                 st.success("✓ Login successful!")
                 st.rerun()
             else:
                 st.error("✗ Invalid credentials")
 
+    # SIGNUP
     with tab2:
-        new_user = st.text_input("Create Username", placeholder="new_username")
-        new_pass = st.text_input("Create Password", type="password", placeholder="••••••••")
+        email = st.text_input("Email", key="signup_email")
+        username = st.text_input("Username", key="signup_user")
+        password = st.text_input("Password", type="password", key="signup_pass")
 
         if st.button("Sign Up", use_container_width=True):
             try:
-                c.execute("INSERT INTO users VALUES (?,?)",
-                          (new_user, new_pass))
+                c.execute(
+                    "INSERT INTO users (email, username, password) VALUES (?,?,?)",
+                    (email, username, password)
+                )
                 conn.commit()
                 st.success("✓ Account created! Now login")
             except:
-                st.error("✗ Username already exists")
-
+                st.error("✗ Email already exists")
 # =========================
 # CHECK LOGIN
 # =========================
@@ -339,12 +321,9 @@ client = Groq(api_key=api_key)
 # LOAD HISTORY (USER BASED)
 # =========================
 def load_history():
-    c.execute("SELECT role, message FROM chat_history WHERE user=?", (user,))
+    c.execute("SELECT role, message FROM chat_history WHERE user_id=?", (st.session_state.user,))
     rows = c.fetchall()
-    st.session_state.messages = [
-        {"role": r, "content": m} for r, m in rows
-    ]
-
+    st.session_state.messages = [{"role": r, "content": m} for r, m in rows]
 if len(st.session_state.messages) == 0:
     load_history()
 
@@ -449,8 +428,7 @@ st.sidebar.markdown("""
 
 if st.sidebar.button("🧹 Clear History", use_container_width=True, key="btn_clear"):
     st.session_state.messages = []
-    c.execute("DELETE FROM chat_history WHERE user=?", (user,))
-    conn.commit()
+c.execute("DELETE FROM chat_history WHERE user_id=?", (st.session_state.user,))    conn.commit()
     st.success("✓ Chat history cleared")
 
 if st.sidebar.button("🚪 Logout", use_container_width=True, key="btn_logout"):
@@ -525,8 +503,8 @@ if st.session_state.mode == "chat":
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
-                  (user, "user", user_input))
+     c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+          (st.session_state.user, "user", user_input))
         conn.commit()
 
         with st.chat_message("assistant"):
@@ -534,8 +512,8 @@ if st.session_state.mode == "chat":
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
 
-        c.execute("INSERT INTO chat_history VALUES (?,?,?)",
-                  (user, "assistant", reply))
+     c.execute("INSERT INTO chat_history VALUES (?,?,?)",
+          (st.session_state.user, "assistant", reply))
         conn.commit()
 
 # =========================
