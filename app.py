@@ -7,6 +7,12 @@ from groq import Groq
 # PAGE CONFIG
 # =========================
 st.set_page_config(page_title="Workflow AI Pro", layout="wide", page_icon="⚡")
+st.set_page_config(
+    page_title="Workflow AI Pro",
+    layout="wide",
+    page_icon="⚡",
+    initial_sidebar_state="expanded"  # 👈 ADD THIS
+)
 
 # =========================
 # CUSTOM CSS INJECTION (LIGHT THEME)
@@ -39,7 +45,8 @@ html, body, [class*="css"] {
 }
 
 /* ─── Hide Streamlit Branding ─── */
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar { width: 6px; }
@@ -404,21 +411,24 @@ st.sidebar.markdown("""
 ">📚 Tools</div>
 """, unsafe_allow_html=True)
 
-col1, col2, col3, col4 = st.sidebar.columns(4)
+col1, col2 = st.sidebar.columns(2)
+
 with col1:
-    if st.button("💬\nChat", use_container_width=True, key="btn_chat"):
+    if st.button("💬 Chat", use_container_width=True):
         st.session_state.mode = "chat"
 
 with col2:
-    if st.button("📧\nEmail", use_container_width=True, key="btn_email"):
+    if st.button("📧 Email", use_container_width=True):
         st.session_state.mode = "email"
 
+col3, col4 = st.sidebar.columns(2)
+
 with col3:
-    if st.button("📊\nReport", use_container_width=True, key="btn_report"):
+    if st.button("📊 Report", use_container_width=True):
         st.session_state.mode = "report"
 
 with col4:
-    if st.button("📝\nSummarize", use_container_width=True, key="btn_summary"):
+    if st.button("📝 Summarize", use_container_width=True):
         st.session_state.mode = "summary"
 
 st.sidebar.markdown("---")
