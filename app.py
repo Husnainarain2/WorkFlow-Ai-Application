@@ -428,7 +428,8 @@ st.sidebar.markdown("""
 
 if st.sidebar.button("🧹 Clear History", use_container_width=True, key="btn_clear"):
     st.session_state.messages = []
-c.execute("DELETE FROM chat_history WHERE user_id=?", (st.session_state.user,))    conn.commit()
+c.execute("DELETE FROM chat_history WHERE user_id=?", (st.session_state.user,))
+conn.commit()
     st.success("✓ Chat history cleared")
 
 if st.sidebar.button("🚪 Logout", use_container_width=True, key="btn_logout"):
