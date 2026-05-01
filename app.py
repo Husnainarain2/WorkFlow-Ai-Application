@@ -227,6 +227,27 @@ h1, h2, h3 {
     border: 1px solid var(--border) !important;
     border-radius: 8px !important;
 }
+
+/* ─── Toggle Button ─── */
+[key="toggle_sidebar"] {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 999 !important;
+}
+
+[key="toggle_sidebar"] > button {
+    background: var(--accent) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 1rem !important;
+    padding: 0.6rem 0.75rem !important;
+    min-width: 45px !important;
+}
+
+[key="toggle_sidebar"] > button:hover {
+    background: #7b6fc4 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -269,6 +290,9 @@ if "mode" not in st.session_state:
 
 if "stop_stream" not in st.session_state:
     st.session_state.stop_stream = False
+
+if "sidebar_open" not in st.session_state:
+    st.session_state.sidebar_open = True
 
 # =========================
 # AUTH PAGE (LOGIN + SIGNUP)
@@ -382,32 +406,115 @@ def ask_ai_stream(messages):
     return full_response
 
 # =========================
+# TOGGLE BUTTON (TOP)
+# =========================
+col1, col2 = st.columns([1, 10])
+with col1:
+    if st.button("☰" if st.session_state.sidebar_open else "→", key="toggle_sidebar", help="Toggle Sidebar"):
+        st.session_state.sidebar_open = not st.session_state.sidebar_open
+        st.rerun()
+
+# =========================
 # SIDEBAR
 # =========================
-st.sidebar.title(f"⚙️ Workflow AI ({user})")
+if st.session_state.sidebar_open:
+    st.sidebar.markdown("""
+    <div style="
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e0e3e8;
+        margin-bottom: 1.2rem;
+    ">
+        <h2 style="
+            font-family: 'Syne', sans-serif;
+            font-size: 1rem;
+            font-weight: 800;
+            color: #5b4fb3;
+            margin: 0 0 0.5rem;
+            letter-spacing: 0.04em;
+        ">⚙️ Workflow AI</h2>
+        <p style="
+            font-family: 'DM Mono', monospace;
+            font-size: 0.72rem;
+            color: #666666;
+            margin: 0;
+            letter-spacing: 0.04em;
+        ">User: <span style="color: #5b4fb3; font-weight: 600;">{user}</span></p>
+    </div>
+    """, unsafe_allow_html=True)
 
-if st.sidebar.button("💬 Chat"):
-    st.session_state.mode = "chat"
+    st.sidebar.markdown("""
+    <div style="
+        font-family: 'DM Mono', monospace;
+        font-size: 0.68rem;
+        color: #666666;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        padding-left: 4px;
+        font-weight: 600;
+    ">📚 Tools</div>
+    """, unsafe_allow_html=True)
 
-if st.sidebar.button("📧 Email"):
-    st.session_state.mode = "email"
+    # Tool buttons
+    if st.sidebar.button("💬 Chat", use_container_width=True, key="btn_chat"):
+        st.session_state.mode = "chat"
+        st.rerun()
 
-if st.sidebar.button("📊 Report"):
-    st.session_state.mode = "report"
+    if st.sidebar.button("📧 Email Generator", use_container_width=True, key="btn_email"):
+        st.session_state.mode = "email"
+        st.rerun()
 
-if st.sidebar.button("📝 Summarizer"):
-    st.session_state.mode = "summary"
+    if st.sidebar.button("📊 Report Generator", use_container_width=True, key="btn_report"):
+        st.session_state.mode = "report"
+        st.rerun()
 
-if st.sidebar.button("🧹 Clear Chat"):
-    st.session_state.messages = []
-    c.execute("DELETE FROM chat_history WHERE user=?", (user,))
-    conn.commit()
-    st.rerun()
+    if st.sidebar.button("📝 Summarizer", use_container_width=True, key="btn_summary"):
+        st.session_state.mode = "summary"
+        st.rerun()
 
-if st.sidebar.button("🚪 Logout"):
-    st.session_state.user = None
-    st.session_state.messages = []
-    st.rerun()
+    st.sidebar.markdown("<div style='height: 1rem;'></div>", unsafe_allow_html=True)
+
+    st.sidebar.markdown("""
+    <div style="
+        font-family: 'DM Mono', monospace;
+        font-size: 0.68rem;
+        color: #666666;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+        padding-left: 4px;
+        font-weight: 600;
+    ">⚡ Actions</div>
+    """, unsafe_allow_html=True)
+
+    if st.sidebar.button("🧹 Clear Chat History", use_container_width=True, key="btn_clear"):
+        st.session_state.messages = []
+        c.execute("DELETE FROM chat_history WHERE user=?", (user,))
+        conn.commit()
+        st.success("✓ Chat history cleared")
+        st.rerun()
+
+    if st.sidebar.button("🚪 Logout", use_container_width=True, key="btn_logout"):
+        st.session_state.user = None
+        st.session_state.messages = []
+        st.rerun()
+
+    st.sidebar.markdown("<div style='height: 1.5rem;'></div>", unsafe_allow_html=True)
+
+    # Model info box
+    st.sidebar.markdown("""
+    <div style="
+        padding: 1rem;
+        background: #f8f9fb;
+        border: 1px solid #e0e3e8;
+        border-radius: 10px;
+        margin-top: 1rem;
+    ">
+        <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #666666; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; font-weight: 600;">Current Model</div>
+        <div style="font-family: 'DM Mono', monospace; font-size: 0.8rem; color: #5b4fb3; font-weight: 600;">llama-3.1-8b</div>
+        <div style="font-family: 'DM Mono', monospace; font-size: 0.68rem; color: #666666; margin-top: 6px;">via Groq API</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # =========================
 # TITLE
