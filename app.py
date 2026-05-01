@@ -404,7 +404,7 @@ st.sidebar.markdown("""
 ">📚 Tools</div>
 """, unsafe_allow_html=True)
 
-col1, col2, col3, col4 = st.sidebar.columns(2)
+col1, col2, col3, col4 = st.sidebar.columns(4)
 with col1:
     if st.button("💬\nChat", use_container_width=True, key="btn_chat"):
         st.session_state.mode = "chat"
