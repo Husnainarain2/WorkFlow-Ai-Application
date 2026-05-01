@@ -503,21 +503,22 @@ if st.session_state.mode == "chat":
         with st.chat_message("user"):
             st.markdown(user_input)
 
-c.execute(
-    "INSERT INTO chat_history VALUES (?,?,?)",
-    (st.session_state.user, "assistant", reply)
-)
-conn.commit()
+        c.execute(
+            "INSERT INTO chat_history VALUES (?,?,?)",
+            (st.session_state.user, "user", user_input)
+        )
+        conn.commit()
 
         with st.chat_message("assistant"):
             reply = ask_ai_stream(st.session_state.messages)
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
 
-     c.execute("INSERT INTO chat_history VALUES (?,?,?)",
-          (st.session_state.user, "assistant", reply))
+        c.execute(
+            "INSERT INTO chat_history VALUES (?,?,?)",
+            (st.session_state.user, "assistant", reply)
+        )
         conn.commit()
-
 # =========================
 # EMAIL MODE
 # =========================
